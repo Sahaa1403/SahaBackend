@@ -1,0 +1,3 @@
+from accounts.management_panel_view.institutes import InstituteLists
+from accounts.management_panel_view.students import StudentLists
+from accounts.management_panel_view.freelance import FreelanceLists
