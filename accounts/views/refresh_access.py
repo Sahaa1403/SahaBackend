@@ -5,7 +5,6 @@ from rest_framework.views import APIView
 from accounts.functions import refresh as refresh_function
 from config.settings import ACCESS_TTL
 
-
 class RefreshAccess(APIView):
     permission_classes = []
 

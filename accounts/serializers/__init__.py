@@ -1,5 +1,1 @@
-from accounts.serializers.user import RegisterSerializer, UserSerializer, UserAllFieldsSerializer, UserUpdateSerializer
-from accounts.serializers.institute import InstituteSerializer, InstituteWalletSerializer
-from accounts.serializers.student import StudentProfileSerializer, StudentWalletSerializer, MultipleStudentProfileSerializer
-from accounts.serializers.freelance import FreelanceProfileSerializer,FreelanceWalletSerializer
-from accounts.serializers.marketer import MarketerPanelSerializer,MarketerWalletSerializer
+from accounts.serializers.user import UserSerializer

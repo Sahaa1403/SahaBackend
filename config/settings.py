@@ -64,10 +64,6 @@ THIRD_PARTY_APPS = (
     "storages",
     "rest_framework_swagger",
     "drf_yasg",
-    "oauth2_provider",
-    "social_django",
-    "drf_social_oauth2",
-    "zeep",
 )
 LOCAL_APPS = (
     "accounts",
