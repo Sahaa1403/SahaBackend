@@ -2,47 +2,45 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from accounts.functions import login
-from accounts.selectors import get_user
 from config.settings import ACCESS_TTL
-from accounts.serializers import UserSerializer
+from accounts.serializers import UserSerializer, RegisterSerializer
+from rest_framework.permissions import AllowAny
 
 
 class Register(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
+    serializer_class = RegisterSerializer
 
-    def post(self, *args, **kwargs):
-        otp_id = self.request.data.get("otp_id", "")
-        otp_code = self.request.data.get("otp_code", "")
-        try:
-            user_id = OneTimePassword.verify_otp(otp_id, otp_code)
-        except ValueError as e:
-            error_detail = str(e)
-            return Response({"success": False, "errors": error_detail}, status=status.HTTP_400_BAD_REQUEST)
-        user = get_user(id=user_id) # self.request.user #
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
 
-        access, refresh = login(user)
+            access, refresh = login(user)
 
-        data = {
-            "refresh_token": refresh,
-            "access_token": access,
-            "user_data": UserSerializer(user).data,
-        }
-        response = Response(
-            {
-                "success": True,
-                "data": data,
-            },
-            status=status.HTTP_200_OK,
-        )
-        print('----------------------access-----')
-        print(access)
-        print('---------------------------------')
-        response.set_cookie(
-            "HTTP_ACCESS",
-            f"Bearer {access}",
-            max_age=ACCESS_TTL * 24 * 3600,
-            secure=True,
-            httponly=True,
-            samesite="None",
-        )
-        return response
+            data = {
+                "refresh_token": refresh,
+                "access_token": access,
+                "user_data": UserSerializer(user).data,
+            }
+            response = Response(
+                {
+                    "success": True,
+                    "data": data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+            print('----------------------access-----')
+            print(access)
+            print('---------------------------------')
+            response.set_cookie(
+                "HTTP_ACCESS",
+                f"Bearer {access}",
+                max_age=ACCESS_TTL * 24 * 3600,
+                secure=True,
+                httponly=True,
+                samesite="None",
+            )
+            return response
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
