@@ -20,15 +20,21 @@ AUTH_USER_MODEL = "accounts.User"
 
 
 
+
+
 if os.getenv("STAGE") == "PRODUCTION":
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql_psycopg2",
-            "NAME": os.getenv("POSTGRES_DB"),
-            "USER": os.getenv("POSTGRES_USER"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "HOST": "sabalan.liara.cloud",
-            "PORT": 33741,
+        'default': {
+            'ENGINE': 'djongo',
+            'NAME': os.getenv("MONGO_DB"),
+            'ENFORCE_SCHEMA': True,  # Optional, allows flexibility
+            'CLIENT': {
+                'host': "lhotse.liara.cloud",
+                'username': os.getenv("MONGO_USER"),
+                'password': os.getenv("MONGO_PASSWORD"),
+                'port': 30800,
+                'authSource': 'admin'  # Authentication DB, usually 'admin'
+            }
         }
     }
 else:
@@ -138,10 +144,10 @@ PASSWORD_HASHERS = [
 
 
 # S3 Settings
-LIARA_ENDPOINT="https://storage.iran.liara.space"
-LIARA_BUCKET_NAME="studyways"
-LIARA_ACCESS_KEY="irgqgfseolt7e4"
-LIARA_SECRET_KEY="4154e7-daf4-4dbe-97a3-38c2a773a2cb"
+LIARA_ENDPOINT="https://storage.c2.liara.space"
+LIARA_BUCKET_NAME="saha"
+LIARA_ACCESS_KEY="f0hl6d510ff2ekrp"
+LIARA_SECRET_KEY="6d8cc809-cd15-43da-aa86-f54dddacb2d1"
 # S3 Settings Based on AWS (optional)
 AWS_ACCESS_KEY_ID = LIARA_ACCESS_KEY
 AWS_SECRET_ACCESS_KEY = LIARA_SECRET_KEY
@@ -177,36 +183,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_ROOT = os.getenv("STATIC_ROOT", default="/static/")
 STATIC_URL = os.getenv("STATIC_URL", default="/static/")
-MEDIA_ROOT = "https://aa.storage.iran.liara.space/media/"
-MEDIA_URL = "https://aa.storage.iran.liara.space/media/"
+MEDIA_ROOT = "https://saha.storage.c2.liara.space/media/"
+MEDIA_URL = "https://saha.storage.c2.liara.space/media/"
 
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-# CACHING CONFIGURATION
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://:RqMstUGUHjQJDR1dQG1GvyJX@lhotse.liara.cloud:33644/0"
-    }
-}
-# END CACHING CONFIGURATION
-
-
-
-# OTP CONFIGURATION
-OTP_CODE_LENGTH = int(os.getenv("OTP_CODE_LENGTH", default="4"))
-OTP_TTL = int(os.getenv("OTP_TTL", default="120"))
-# END OTP CONFIGURATION
-
 # JWT SETIINGS
-ACCESS_TTL = int(os.getenv("ACCESS_TTL", default="1"))  # days
-REFRESH_TTL = int(os.getenv("REFRESH_TTL", default="2"))  # days
+ACCESS_TTL = int(os.getenv("ACCESS_TTL", default="4"))  # days
+REFRESH_TTL = int(os.getenv("REFRESH_TTL", default="10"))  # days
 # END JWT SETTINGS
-
-
 
 
 
