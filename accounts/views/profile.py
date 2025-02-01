@@ -16,7 +16,7 @@ class Profile(APIView):
     def patch(self, *args, **kwargs):
         data = self.request.data
         user = self.request.user
-        serializer = UserUpdateSerializer(user, data=data)
+        serializer = self.serializer_class(user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -27,7 +27,7 @@ class ProfilePicture(APIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     def post(self, *args, **kwargs):
-        serializer = self.serializer_class(self.request.user, data=self.request.data)
+        serializer = self.serializer_class(self.request.user, data=self.request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
