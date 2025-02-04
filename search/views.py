@@ -9,4 +9,7 @@ class TextSearch(APIView):
 
     def post(self, *args, **kwargs):
         data = self.request.data
+        # todo - send text to AI
+        # todo - save data in models and db
+        # todo - show response after process
         return Response(data, status=status.HTTP_200_OK)

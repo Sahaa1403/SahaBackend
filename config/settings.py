@@ -1,5 +1,4 @@
 from pathlib import Path
-from urllib.parse import quote
 from dotenv import load_dotenv
 import os
 
@@ -17,7 +16,6 @@ WSGI_APPLICATION = "config.wsgi.application"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 AUTH_USER_MODEL = "accounts.User"
 #APPEND_SLASH = True
-
 
 
 
