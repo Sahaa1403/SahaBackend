@@ -22,17 +22,13 @@ AUTH_USER_MODEL = "accounts.User"
 
 if os.getenv("STAGE") == "PRODUCTION":
     DATABASES = {
-        'default': {
-            'ENGINE': 'djongo',
-            'NAME': os.getenv("MONGO_DB"),
-            'ENFORCE_SCHEMA': True,  # Optional, allows flexibility
-            'CLIENT': {
-                'host': "lhotse.liara.cloud",
-                'username': os.getenv("MONGO_USER"),
-                'password': os.getenv("MONGO_PASSWORD"),
-                'port': 30800,
-                'authSource': 'admin'  # Authentication DB, usually 'admin'
-            }
+        "default": {
+            "ENGINE": "django.db.backends.postgresql_psycopg2",
+            "NAME": os.getenv("POSTGRES_DB"),
+            "USER": os.getenv("POSTGRES_USER"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+            "HOST": "lhotse.liara.cloud",
+            "PORT": 30645,
         }
     }
 else:

@@ -1,6 +1,9 @@
 from django.urls import path
-from search.views import TextSearch
+from search.views import Search
+from search.mongodb import check_mongodb_connection
+
 
 urlpatterns = [
-    path("text-search", TextSearch.as_view(), name="text-search"),
+    path("search", Search.as_view(), name="search"),
+    path("check-mongodb-connection", check_mongodb_connection, name="check-mongodb-connection"),
 ]
