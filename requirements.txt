@@ -27,5 +27,6 @@ django-storages
 django-rest-swagger==2.2.0
 drf-yasg==1.21.7
 openai==1.46.0
+psycopg2-binary==2.9.10
 pandas==2.2.3
 python-decouple==3.8
