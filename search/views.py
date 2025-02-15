@@ -16,6 +16,7 @@ class Search(APIView):
             # todo - response data
 
             response_data = {
+                "id": 243,
                 "keywords": {"اعتراض", "نظام ـ سلامت"},
                 "locations": {"ایران", "تهران", "خوزستان"},
                 "possibilities": [
@@ -44,6 +45,7 @@ class Search(APIView):
                         "date": "June 7, 2021"
                     }
                 ],
+                "created_data": "Feb 25, 2025"
             }
 
             return Response(response_data, status=status.HTTP_200_OK)
@@ -63,6 +65,7 @@ class MediaSearch(APIView):
             # todo - response data
 
             response_data = {
+                "id": 243,
                 "keywords": {"اعتراض", "نظام ـ سلامت"},
                 "locations": {"ایران", "تهران", "خوزستان"},
                 "possibilities": [
@@ -91,6 +94,7 @@ class MediaSearch(APIView):
                         "date": "June 7, 2021"
                     }
                 ],
+                "created_data": "Feb 25, 2025"
             }
 
             return Response(response_data, status=status.HTTP_200_OK)
@@ -108,6 +112,7 @@ class Answer(APIView):
             # todo - response data
 
             data = {
+                "id": 243,
                 "keywords": {"اعتراض","نظام ـ سلامت"},
                 "locations": {"ایران","تهران","خوزستان"},
                 "possibilities": [
@@ -136,6 +141,7 @@ class Answer(APIView):
                         "date": "June 7, 2021"
                     }
                 ],
+                "created_data": "Feb 25, 2025"
             }
 
             return Response(data, status=status.HTTP_200_OK)
