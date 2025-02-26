@@ -187,7 +187,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # JWT SETIINGS
-ACCESS_TTL = int(os.getenv("ACCESS_TTL", default="4"))  # days
+ACCESS_TTL = int(os.getenv("ACCESS_TTL", default="5"))  # days
 REFRESH_TTL = int(os.getenv("REFRESH_TTL", default="10"))  # days
 # END JWT SETTINGS
 
