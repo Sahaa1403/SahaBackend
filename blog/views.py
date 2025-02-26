@@ -58,3 +58,22 @@ class PostItem(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except:
             return Response("Post not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, *args, **kwargs):
+        try:
+            post = Post.objects.get(slug=self.kwargs["slug"])
+            serializer = self.serializer_class(post, data=self.request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+        except:
+            return Response("Post not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, *args, **kwargs):
+        try:
+            post = Post.objects.get(slug=self.kwargs["slug"])
+            post.delete()
+            return Response("Post deleted.", status=status.HTTP_200_OK)
+        except:
+            return Response("Post not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
