@@ -105,6 +105,16 @@ TEMPLATES = [
 ]
 
 
+# CACHING CONFIGURATION
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
+    }
+}
+
+
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {
