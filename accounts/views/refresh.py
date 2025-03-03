@@ -4,11 +4,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from accounts.functions import refresh as refresh_function
 from config.settings import ACCESS_TTL
-from rest_framework.permissions import AllowAny
 
 
 class Refresh(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = []
 
     def post(self, *args, **kwargs):
         refresh = self.request.data.get("refresh", "")

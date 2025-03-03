@@ -105,11 +105,12 @@ TEMPLATES = [
 ]
 
 
+
 # CACHING CONFIGURATION
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'django_cache_table',
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
     }
 }
 
