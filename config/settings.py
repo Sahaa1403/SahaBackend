@@ -4,7 +4,7 @@ import os
 
 
 load_dotenv()
-KEY = os.getenv('KEY')
+KEY="django-insecure-zmk1c2%=a2k@mj)e-ibe+4!-w9&(p9uan0*6i2vd$nkeh10uqf"
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = KEY
@@ -15,7 +15,7 @@ ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 ACCOUNT_EMAIL_VERIFICATION = "none"
 AUTH_USER_MODEL = "accounts.User"
-#APPEND_SLASH = True
+APPEND_SLASH = True
 
 
 
@@ -195,10 +195,7 @@ REFRESH_TTL = int(os.getenv("REFRESH_TTL", default="10"))  # days
 
 # REST FRAMEWORK CONFIGURATION
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework.authentication.SessionAuthentication",
-        "accounts.backends.JWTAuthentication",
-    ),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("accounts.backends.JWTAuthentication",),
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     "DEFAULT_THROTTLE_RATES": {"otp": os.getenv("OTP_THROTTLE_RATE", default="10/min"), },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -234,7 +231,7 @@ CKEDITOR_CONFIGS = {
 }
 
 # CORSHEADERS CONFIGURATION
-ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','liara.run','sahabackend.liara.run']
+ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','liara.run','sahabackend.liara.run','saha.liara.run']
 CORS_ALLOWED_ORIGINS = ["https://liara.run","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
 CSRF_TRUSTED_ORIGINS = ["https://liara.run","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
 CORS_ORIGIN_ALLOW_ALL = True
