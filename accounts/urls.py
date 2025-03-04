@@ -1,6 +1,6 @@
 from django.urls import path
 from accounts.views import Logout,Profile,Refresh,RefreshAccess,OverView,Login,Register,ProfilePicture,FullRegister
-from accounts.management_views import UsersList,UserItem
+from accounts.management_views import UsersList,UserItem,LastSearches
 
 urlpatterns = [
     path("login", Login.as_view(), name="login"),
@@ -15,4 +15,5 @@ urlpatterns = [
     # --- Manage users ---
     path("users", UsersList.as_view(), name="users"),
     path("user/<int:id>", UserItem.as_view(), name="user"),
+    path("last_searches", LastSearches.as_view(), name="last_searches"),
 ]
