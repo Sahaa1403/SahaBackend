@@ -17,7 +17,7 @@ class CustomPagination(PageNumberPagination):
 
 
 
-class PostView(GenericAPIView):
+class AllPostsView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = CustomPagination
     serializer_class = PostSerializer
@@ -34,6 +34,29 @@ class PostView(GenericAPIView):
             serializer = self.serializer_class(page, many=True)
             return self.get_paginated_response(serializer.data)
         serializer = self.filter_queryset(Post.objects.all())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+class PostView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = CustomPagination
+    serializer_class = PostSerializer
+    queryset = Post.objects.all()
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['post_date', 'status', 'author', 'feedback_status', 'comment_status']
+    search_fields = ['title', 'body', 'slug']
+    ordering_fields = ['post_date', 'status', 'author']
+
+    def get(self, *args, **kwargs):
+        usr = self.request.user
+        posts = self.filter_queryset(Post.objects.filter(author=usr))
+        page = self.paginate_queryset(posts)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.filter_queryset(Post.objects.filter(author=usr))
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, *args, **kwargs):

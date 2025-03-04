@@ -5,13 +5,11 @@ from accounts.functions import login
 from django.utils.text import slugify
 
 
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
-        fields = ("id","username","user_type","name","email","image","created_at","updated_at","is_active")
+        fields = ("active_status","id","username","user_type","name","email","image","organization_unit","cooperation_type","created_at","updated_at","is_active")
         #fields = "__all__"
-
 
 
 
