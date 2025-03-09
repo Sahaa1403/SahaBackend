@@ -3,12 +3,21 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from accounts.functions import login
 from django.utils.text import slugify
+from accounts.models import UserType
+
+
+class UserTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserType
+        fields = ["id", "name"]
 
 
 class UserSerializer(serializers.ModelSerializer):
+    user_type = UserTypeSerializer(many=True, read_only=True)
+    user_type_ids = serializers.PrimaryKeyRelatedField(queryset=UserType.objects.all(), source="user_type", many=True, write_only=True)
     class Meta:
         model = get_user_model()
-        fields = ("active_status","id","username","user_type","name","email","image","organization_unit","cooperation_type","created_at","updated_at","is_active")
+        fields = ("active_status","id","username","user_type","user_type_ids","name","email","image","organization_unit","cooperation_type","created_at","updated_at","is_active")
         #fields = "__all__"
 
 
