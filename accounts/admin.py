@@ -3,7 +3,7 @@ from accounts.models import User,UserType
 from import_export.admin import ImportExportModelAdmin
 
 class UserAdmin(ImportExportModelAdmin):
-    list_display = ('email', 'username', 'name', 'created_at')
+    list_display = ('email', 'username', 'name', 'active_type', 'created_at')
     list_filter = ("created_at","user_type")
     search_fields = ['username', 'email', 'name']
     readonly_fields = ('id','updated_at', 'created_at', 'last_login', 'password')

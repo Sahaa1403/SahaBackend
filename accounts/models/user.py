@@ -16,6 +16,8 @@ class User(AbstractUser):
 
     active_status = models.BooleanField(default=True)
     user_type = models.ManyToManyField(UserType, blank=True)
+    active_type = models.ForeignKey(UserType, on_delete=models.CASCADE, null=True,blank=True, related_name="active_type")
+    permissions = models.CharField(max_length=200, null=True,blank=True)
     username = models.CharField(max_length=250,unique=True)
     email = models.EmailField(max_length=250,unique=True)
     name = models.CharField(max_length=200, null=True,blank=True)
