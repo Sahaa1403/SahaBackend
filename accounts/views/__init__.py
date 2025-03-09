@@ -5,3 +5,4 @@ from accounts.views.register import Register,FullRegister
 from accounts.views.refresh_access import RefreshAccess
 from accounts.views.profile import Profile,ProfilePicture
 from accounts.views.overview import OverView
+from accounts.views.types import UserTypes

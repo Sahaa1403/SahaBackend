@@ -1,5 +1,5 @@
 from django.urls import path
-from accounts.views import Logout,Profile,Refresh,RefreshAccess,OverView,Login,Register,ProfilePicture,FullRegister
+from accounts.views import Logout,Profile,Refresh,RefreshAccess,OverView,Login,Register,ProfilePicture,FullRegister,UserTypes
 from accounts.management_views import UsersList,UserItem,LastSearches
 
 urlpatterns = [
@@ -9,6 +9,7 @@ urlpatterns = [
     path("refresh", Refresh.as_view(), name="refresh"),
     path("refresh-access", RefreshAccess.as_view(), name="refresh-access"),
     #path("overview", OverView.as_view(), name="overview"),
+    path("user-types", UserTypes.as_view(), name="user-types"),
     path("profile", Profile.as_view(), name="profile"),
     path("profile-picture", ProfilePicture.as_view(), name="profile-picture"),
     path("logout", Logout.as_view(), name="logout"),
