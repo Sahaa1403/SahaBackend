@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/v1/accounts/", include("accounts.urls")),
     path("api/v1/search/", include("search.urls")),
     path("api/v1/blog/", include("blog.urls")),
+    path("api/v1/support/", include("support.urls")),
 ]
 urlpatterns += static(MEDIA_URL, document_root=MEDIA_ROOT)
 urlpatterns += static(STATIC_URL, document_root=STATIC_ROOT)

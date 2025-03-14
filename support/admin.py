@@ -1,3 +1,9 @@
 from django.contrib import admin
+from support.models import Ticket
 
-# Register your models here.
+class TicketAdmin(admin.ModelAdmin):
+    list_display = ('status', 'title', 'user', 'created_date')
+    list_filter = ("status","user","created_date")
+    search_fields = ['title', 'body']
+admin.site.register(Ticket, TicketAdmin)
+
