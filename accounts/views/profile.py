@@ -16,11 +16,20 @@ class Profile(APIView):
     def patch(self, *args, **kwargs):
         data = self.request.data
         user = self.request.user
+        password = data.pop("password", None)
+
         serializer = self.serializer_class(user, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
+
+            if password:
+                user.set_password(password)
+                user.save()
+
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
 
 
 class ProfilePicture(APIView):
