@@ -1,9 +1,162 @@
-from rest_framework import status
+from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from search.models import SearchData
-from search.serializers import SearchDataSerializer
+from search.models import SearchData,KnowledgeBase, Label
+from search.serializers import SearchDataSerializer,AddKnowledgeBaseSerializer, KnowledgeBaseSerializer, LabelSerializer
+from rest_framework_mongoengine.viewsets import ModelViewSet
+import requests
+import json
+import urllib.parse
+
+
+class LabelViewSet(viewsets.ViewSet):
+    def list(self, request):
+        labels = Label.objects.all()
+        serializer = LabelSerializer(labels, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = LabelSerializer(data=request.data)
+        if serializer.is_valid():
+            label = serializer.save()
+            return Response(LabelSerializer(label).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def retrieve(self, request, pk=None):
+        label = Label.objects(id=pk).first()
+        if label:
+            return Response(LabelSerializer(label).data)
+        return Response({'error': 'Label not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def update(self, request, pk=None):
+        label = Label.objects(id=pk).first()
+        if not label:
+            return Response({'error': 'Label not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LabelSerializer(label, data=request.data)
+        if serializer.is_valid():
+            label = serializer.save()
+            return Response(LabelSerializer(label).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, pk=None):
+        label = Label.objects(id=pk).first()
+        if label:
+            label.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({'error': 'Label not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class KnowledgeBaseViewSet(viewsets.ViewSet):
+    def list(self, request):
+        items = KnowledgeBase.objects.all()
+        serializer = KnowledgeBaseSerializer(items, many=True)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = AddKnowledgeBaseSerializer(data=request.data)
+        if serializer.is_valid():
+            item = serializer.save()
+            url = 'http://62.60.198.225:5682/text/kb/add_news'
+            headers = {
+                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                'Content-Type': 'application/json',
+            }
+            payload = {
+                'category': item.category,
+                'id': str(item.id),
+                'body': item.body,
+            }
+            response = requests.post(url, params=payload, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                print(data)
+                return Response(KnowledgeBaseSerializer(item).data, status=status.HTTP_201_CREATED)
+            else:
+                print("Status Code:", response.status_code)
+                print("Response Text:", response.text)
+                print("Request Payload:", payload)
+                print("Request Headers:", headers)
+                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def retrieve(self, request, pk=None):
+        item = KnowledgeBase.objects(id=pk).first()
+        if item:
+            return Response(KnowledgeBaseSerializer(item).data)
+        return Response({'error': 'KnowledgeBase item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def update(self, request, pk=None):
+        item = KnowledgeBase.objects(id=pk).first()
+        if not item:
+            return Response({'error': 'KnowledgeBase item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AddKnowledgeBaseSerializer(item, data=request.data)
+        if serializer.is_valid():
+            item = serializer.save()
+
+            url = 'http://62.60.198.225:5682/text/kb/update_news'
+
+            headers = {
+                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                'Content-Type': 'application/json',
+            }
+            payload = {
+                'old_category': item.old_category,
+                'id': str(item.id),
+                'body': item.body,
+                'new_category': item.category,
+            }
+
+            response = requests.put(url, params=payload, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                print(data)
+                return Response(KnowledgeBaseSerializer(item).data)
+            else:
+                print("Status Code:", response.status_code)
+                print("Response Text:", response.text)
+                print("Request Payload:", payload)
+                print("Request Headers:", headers)
+                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, pk=None):
+        item = KnowledgeBase.objects(id=pk).first()
+        if item:
+            url = 'http://62.60.198.225:5682/text/kb/remove_news'
+            headers = {
+                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                'Content-Type': 'application/json',
+            }
+            payload = {
+                'category': item.category,
+                'id': str(item.id),
+            }
+            response = requests.delete(url, params=payload, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                print(data)
+                item.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                print("Status Code:", response.status_code)
+                print("Response Text:", response.text)
+                print("Request Payload:", payload)
+                print("Request Headers:", headers)
+                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'error': 'KnowledgeBase item not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
 
 class Search(APIView):
     permission_classes = [AllowAny]

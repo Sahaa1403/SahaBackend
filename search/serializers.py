@@ -1,5 +1,6 @@
-from search.models import SearchData
+from search.models import SearchData,KnowledgeBase, Label
 from rest_framework import serializers
+from rest_framework_mongoengine.serializers import DocumentSerializer
 
 
 class SearchDataSerializer(serializers.Serializer):
@@ -19,3 +20,21 @@ class SearchDataSerializer(serializers.Serializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
+
+
+class LabelSerializer(DocumentSerializer):
+    class Meta:
+        model = Label
+        fields = '__all__'
+
+class KnowledgeBaseSerializer(DocumentSerializer):
+    label = LabelSerializer(read_only=True)
+    class Meta:
+        model = KnowledgeBase
+        fields = '__all__'
+
+class AddKnowledgeBaseSerializer(DocumentSerializer):
+    class Meta:
+        model = KnowledgeBase
+        fields = '__all__'
