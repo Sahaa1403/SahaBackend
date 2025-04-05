@@ -164,10 +164,35 @@ class Search(APIView):
         try:
             data = self.request.data
             search = data['search']
+
+            url = 'http://62.60.198.225:5682/text/check_news'
+
+            headers = {
+                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                'Content-Type': 'application/json',
+            }
+            payload = {
+                'input_news': search,
+            }
+
+            response = requests.post(url, params=payload, headers=headers)
+
+            if response.status_code == 200:
+                r_data = response.json()
+                return Response(r_data, status=status.HTTP_200_OK)
+            else:
+                print("Status Code:", response.status_code)
+                print("Response Text:", response.text)
+                print("Request Payload:", payload)
+                print("Request Headers:", headers)
+                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
+
+
             # todo - save search
             # todo - connect to AI and get data
             # todo - response data
 
+            """ 
             response_data = {
                 "id": 243,
                 "keywords": {"اعتراض", "نظام ـ سلامت"},
@@ -200,8 +225,9 @@ class Search(APIView):
                 ],
                 "created_data": "Feb 25, 2025"
             }
+            """
 
-            return Response(response_data, status=status.HTTP_200_OK)
+            #return Response(response_data, status=status.HTTP_200_OK)
         except:
             return Response("Something went wrong please try again.", status=status.HTTP_400_BAD_REQUEST)
 
