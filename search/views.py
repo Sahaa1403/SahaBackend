@@ -10,6 +10,7 @@ import json
 import urllib.parse
 
 
+
 class LabelViewSet(viewsets.ViewSet):
     def list(self, request):
         labels = Label.objects.all()
