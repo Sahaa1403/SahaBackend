@@ -80,6 +80,7 @@ THIRD_PARTY_APPS = (
     "storages",
     "rest_framework_swagger",
     "drf_yasg",
+    "rest_framework_mongoengine",
 )
 LOCAL_APPS = (
     "accounts",
