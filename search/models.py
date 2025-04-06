@@ -1,15 +1,13 @@
 from django.db import models
-from mongoengine import Document, StringField, EmailField, DateTimeField, IntField,  ReferenceField
+from mongoengine import Document, StringField, DictField, DateTimeField, ReferenceField
 import datetime
 
 
 class SearchData(Document):
-    text = StringField(max_length=200)
-    #email = EmailField(unique=True, required=True)
-    #age = IntField()
-    #created_at = DateTimeField(default=datetime.datetime.utcnow)
-
-    meta = {'collection': 'SearchData'}  # Specify the collection name
+    user_id = StringField(required=False, null=True)
+    text = StringField(max_length=1000)
+    ai_answer = DictField()
+    created_at = DateTimeField(default=datetime.datetime.utcnow)
 
 
 
@@ -29,7 +27,6 @@ class KnowledgeBase(Document):
     def save(self, *args, **kwargs):
         self.updated_at = datetime.datetime.utcnow()
         return super(KnowledgeBase, self).save(*args, **kwargs)
-
 
 
 

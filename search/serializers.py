@@ -22,6 +22,11 @@ class SearchDataSerializer(serializers.Serializer):
         return instance
 
 
+class SearchSerializer(DocumentSerializer):
+    class Meta:
+        model = SearchData
+        fields = '__all__'
+
 
 class LabelSerializer(DocumentSerializer):
     class Meta:
