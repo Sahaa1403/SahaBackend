@@ -190,9 +190,15 @@ class Search(APIView):
 
             if response.status_code == 200:
                 ai_result = response.json()
-                search_item.ai_answer = ai_result
+
+                fact = KnowledgeBase(id=ai_result['fact_id'])
+                combined_result = {
+                    'ai_result': ai_result,
+                    'fact_data': KnowledgeBaseSerializer(fact).data
+                }
+                search_item.ai_answer = combined_result
                 search_item.save()
-                return Response(ai_result, status=status.HTTP_200_OK)
+                return Response(combined_result, status=status.HTTP_200_OK)
             else:
                 logger.warning(f"AI service failed | Status: {response.status_code} | Response: {response.text}")
                 return Response({'error': 'Failed to fetch AI response.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -203,7 +209,10 @@ class Search(APIView):
 
 
 
+
 #----------------------
+
+
 
 
 

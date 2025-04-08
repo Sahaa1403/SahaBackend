@@ -21,12 +21,15 @@ class KnowledgeBase(Document):
     body = StringField(max_length=5000, required=True)
     source = StringField(max_length=2000)
     label = ReferenceField(Label)
+    keyword = StringField(max_length=1000,required=False,null=True)
+    location = StringField(max_length=1000, required=False, null=True)
     created_at = DateTimeField(default=datetime.datetime.utcnow)
     updated_at = DateTimeField(default=datetime.datetime.utcnow)
 
     def save(self, *args, **kwargs):
         self.updated_at = datetime.datetime.utcnow()
         return super(KnowledgeBase, self).save(*args, **kwargs)
+
 
 
 
