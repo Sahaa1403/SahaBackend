@@ -161,6 +161,19 @@ class KnowledgeBaseViewSet(viewsets.ViewSet):
 
 
 
+
+class SearchByID(APIView):
+    permission_classes = [AllowAny]
+    def get(self, request, id=None):
+        search = SearchData.objects(id=id).first()
+        if search:
+            return Response(SearchSerializer(search).data, status=status.HTTP_200_OK)
+        return Response({'error': 'Search data not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
 class Search(APIView):
     permission_classes = [AllowAny]
 
@@ -193,6 +206,7 @@ class Search(APIView):
 
                 fact = KnowledgeBase(id=ai_result['fact_id'])
                 combined_result = {
+                    'id': str(search_item.id),
                     'ai_result': ai_result,
                     'fact_data': KnowledgeBaseSerializer(fact).data
                 }
