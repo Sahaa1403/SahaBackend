@@ -23,17 +23,28 @@ class SearchSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SourceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Source
-        fields = '__all__'
-
 
 
 class LabelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Label
         fields = '__all__'
+
+
+
+
+class SourceSerializer(serializers.ModelSerializer):
+    default_label = LabelSerializer()
+    class Meta:
+        model = Source
+        fields = '__all__'
+
+
+class CreateSourceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Source
+        fields = '__all__'
+
 
 
 class KnowledgeBaseSerializer(serializers.ModelSerializer):
@@ -46,9 +57,10 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
 
 class SourceFullSerializer(serializers.ModelSerializer):
     knowledge_base_items = serializers.SerializerMethodField()
+    default_label = LabelSerializer()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'default_label', 'photo', 'file', 'created_at', 'knowledge_base_items']
+        fields = ['id', 'title', 'description', 'category', 'default_label', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True).data
@@ -57,9 +69,10 @@ class SourceFullSerializer(serializers.ModelSerializer):
 
 class SourceWithKBSerializer(serializers.ModelSerializer):
     knowledge_base_items = serializers.SerializerMethodField()
+    default_label = LabelSerializer()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'default_label', 'photo', 'file', 'created_at', 'knowledge_base_items']
+        fields = ['id', 'title', 'description', 'category', 'default_label', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True).data

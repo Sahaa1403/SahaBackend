@@ -4,7 +4,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from search.models import SearchData,KnowledgeBase, Label, Source
 from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
-    KnowledgeBaseSerializer, LabelSerializer, SourceSerializer, SourceFullSerializer, SourceWithKBSerializer
+    KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SourceSerializer, \
+    SourceFullSerializer, SourceWithKBSerializer
 import requests
 import logging
 from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
@@ -54,7 +55,7 @@ class SourceViewSet(APIView):
         serializer = self.serializer_class(source,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self, *args, **kwargs):
-        serializer = self.serializer_class(data=self.request.data)
+        serializer = CreateSourceSerializer(data=self.request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)

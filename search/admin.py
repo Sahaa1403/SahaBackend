@@ -2,7 +2,7 @@ from django.contrib import admin
 from search.models import SearchData,Label,KnowledgeBase,Source
 
 class SourceAdmin(admin.ModelAdmin):
-    list_display = ('title', 'id', 'default_label', 'created_at')
+    list_display = ('title', 'id', 'created_at')
     list_filter = ("created_at",)
     search_fields = ['title', 'description']
 admin.site.register(Source, SourceAdmin)

@@ -5,6 +5,7 @@ from accounts.models import User
 class SearchData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True,blank=True)
     text = models.CharField(max_length=1000)
+    photo = models.ImageField(upload_to="Search_photo", null=True, blank=True)
     ai_answer = models.JSONField(null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -12,22 +13,29 @@ class SearchData(models.Model):
         return self.text
 
 
-class Source(models.Model):
-    title = models.CharField(max_length=1000)
-    description = models.TextField(max_length=2000,null=True,blank=True)
-    default_label = models.CharField(max_length=500,null=True,blank=True)
-    photo = models.ImageField(upload_to="source_photo",null=True,blank=True)
-    file = models.FileField(upload_to="source_file",null=True,blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    def __str__(self):
-        return self.title
-
 
 
 class Label(models.Model):
     name = models.CharField(max_length=1000)
     def __str__(self):
         return self.name
+
+
+class Source(models.Model):
+    title = models.CharField(max_length=1000)
+    description = models.TextField(max_length=2000,null=True,blank=True)
+    cat_choices = (("real", "real"), ("fake", "fake"),)
+    category = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
+    default_label = models.ForeignKey(Label, on_delete=models.CASCADE, null=True,blank=True)
+    photo = models.ImageField(upload_to="source_photo",null=True,blank=True)
+    file = models.FileField(upload_to="source_file",null=True,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return self.title
+
+
+
 
 
 class KnowledgeBase(models.Model):
@@ -40,6 +48,7 @@ class KnowledgeBase(models.Model):
     label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
+    photo = models.ImageField(upload_to="kb_photo", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
