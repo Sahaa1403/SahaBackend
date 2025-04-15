@@ -75,53 +75,6 @@ class KnowledgeBaseViewSet(APIView):
     def post(self, *args, **kwargs):
         serializer = AddKnowledgeBaseSerializer(data=self.request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
-
-
-
-class KnowledgeBaseItemViewSet(APIView):
-    serializer_class = KnowledgeBaseSerializer
-    permission_classes = [AllowAny]
-    def get(self, *args, **kwargs):
-        try:
-            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            serializer = self.serializer_class(kb)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except:
-            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
-
-    def put(self, *args, **kwargs):
-        try:
-            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            serializer = AddKnowledgeBaseSerializer(kb, data=self.request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
-        except:
-            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, *args, **kwargs):
-        try:
-            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            kb.delete()
-            return Response("KnowledgeBase deleted.", status=status.HTTP_200_OK)
-        except:
-            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
-
-
-"""
-class KnowledgeBaseViewSet(viewsets.ViewSet):
-    def list(self, request):
-        items = KnowledgeBase.objects.all()
-        serializer = KnowledgeBaseSerializer(items, many=True)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = AddKnowledgeBaseSerializer(data=request.data)
-        if serializer.is_valid():
             item = serializer.save()
             url = 'http://62.60.198.225:5682/text/kb/add_news'
             headers = {
@@ -145,80 +98,86 @@ class KnowledgeBaseViewSet(viewsets.ViewSet):
                 print("Request Payload:", payload)
                 print("Request Headers:", headers)
                 return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
-    def retrieve(self, request, pk=None):
-        item = KnowledgeBase.objects(id=pk).first()
-        if item:
-            return Response(KnowledgeBaseSerializer(item).data)
-        return Response({'error': 'KnowledgeBase item not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    def update(self, request, pk=None):
-        item = KnowledgeBase.objects(id=pk).first()
-        if not item:
-            return Response({'error': 'KnowledgeBase item not found'}, status=status.HTTP_404_NOT_FOUND)
+class KnowledgeBaseItemViewSet(APIView):
+    serializer_class = KnowledgeBaseSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        try:
+            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(kb)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except:
+            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = AddKnowledgeBaseSerializer(item, data=request.data)
-        if serializer.is_valid():
-            item = serializer.save()
+    def put(self, *args, **kwargs):
+        try:
+            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
+            serializer = AddKnowledgeBaseSerializer(kb, data=self.request.data, partial=True)
+            if serializer.is_valid():
+                item = serializer.save()
 
-            url = 'http://62.60.198.225:5682/text/kb/update_news'
+                url = 'http://62.60.198.225:5682/text/kb/update_news'
+                headers = {
+                    'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                    'Content-Type': 'application/json',
+                }
+                payload = {
+                    'old_category': item.old_category,
+                    'id': str(item.id),
+                    'body': item.body,
+                    'new_category': item.category,
+                }
 
-            headers = {
-                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                'Content-Type': 'application/json',
-            }
-            payload = {
-                'old_category': item.old_category,
-                'id': str(item.id),
-                'body': item.body,
-                'new_category': item.category,
-            }
+                response = requests.put(url, params=payload, headers=headers)
 
-            response = requests.put(url, params=payload, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    print(data)
+                    return Response(KnowledgeBaseSerializer(item).data)
+                else:
+                    print("Status Code:", response.status_code)
+                    print("Response Text:", response.text)
+                    print("Request Payload:", payload)
+                    print("Request Headers:", headers)
+                    return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+        except:
+            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
-            if response.status_code == 200:
-                data = response.json()
-                print(data)
-                return Response(KnowledgeBaseSerializer(item).data)
-            else:
-                print("Status Code:", response.status_code)
-                print("Response Text:", response.text)
-                print("Request Payload:", payload)
-                print("Request Headers:", headers)
-                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
+    def delete(self, *args, **kwargs):
+        try:
+            item = KnowledgeBase.objects.get(id=self.kwargs["id"])
+            if item:
+                url = 'http://62.60.198.225:5682/text/kb/remove_news'
+                headers = {
+                    'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                    'Content-Type': 'application/json',
+                }
+                payload = {
+                    'category': item.category,
+                    'id': str(item.id),
+                }
+                response = requests.delete(url, params=payload, headers=headers)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                if response.status_code == 200:
+                    data = response.json()
+                    print(data)
+                    item.delete()
+                    return Response(status=status.HTTP_204_NO_CONTENT)
+                else:
+                    print("Status Code:", response.status_code)
+                    print("Response Text:", response.text)
+                    print("Request Payload:", payload)
+                    print("Request Headers:", headers)
+                    return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
+            return Response("KnowledgeBase deleted.", status=status.HTTP_200_OK)
+        except:
+            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
-    def destroy(self, request, pk=None):
-        item = KnowledgeBase.objects(id=pk).first()
-        if item:
-            url = 'http://62.60.198.225:5682/text/kb/remove_news'
-            headers = {
-                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                'Content-Type': 'application/json',
-            }
-            payload = {
-                'category': item.category,
-                'id': str(item.id),
-            }
-            response = requests.delete(url, params=payload, headers=headers)
-
-            if response.status_code == 200:
-                data = response.json()
-                print(data)
-                item.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            else:
-                print("Status Code:", response.status_code)
-                print("Response Text:", response.text)
-                print("Request Payload:", payload)
-                print("Request Headers:", headers)
-                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({'error': 'KnowledgeBase item not found'}, status=status.HTTP_404_NOT_FOUND)
-"""
 
 
 
