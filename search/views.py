@@ -263,8 +263,8 @@ class KnowledgeBaseItemViewSet(APIView):
 
 class SearchByID(APIView):
     permission_classes = [AllowAny]
-    def get(self, request, id=None):
-        search = SearchData.objects(id=id).first()
+    def get(self, *args, **kwargs):
+        search = SearchData.objects.get(id=self.kwargs["id"])
         if search:
             return Response(SearchSerializer(search).data, status=status.HTTP_200_OK)
         return Response({'error': 'Search data not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -275,7 +275,6 @@ class SearchByID(APIView):
 
 class Search(APIView):
     permission_classes = [AllowAny]
-
     def post(self, request, *args, **kwargs):
         try:
             search_text = request.data.get('search')
