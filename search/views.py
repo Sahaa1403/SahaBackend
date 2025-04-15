@@ -2,15 +2,95 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
-from search.models import SearchData,KnowledgeBase, Label
-from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, KnowledgeBaseSerializer, LabelSerializer
-from rest_framework_mongoengine.viewsets import ModelViewSet
+from search.models import SearchData,KnowledgeBase, Label, Source
+from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
+    KnowledgeBaseSerializer, LabelSerializer, SourceSerializer, SourceFullSerializer
 import requests
+import logging
+from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.generics import GenericAPIView
+from rest_framework_mongoengine.viewsets import ModelViewSet
 import json
 import urllib.parse
-import logging
 
 logger = logging.getLogger(__name__)
+
+
+class CustomPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+
+class SourceFullAPIViewSet(GenericAPIView):
+    queryset = Source.objects.all()
+    permission_classes = [AllowAny]
+    pagination_class = CustomPagination
+    serializer_class = SourceFullSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['title', 'created_at']
+    search_fields = ['title', 'description']
+    ordering_fields = ['id', 'created_at']
+
+    def get(self, *args, **kwargs):
+        source = self.filter_queryset(Source.objects.all())
+        page = self.paginate_queryset(source)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.filter_queryset(Source.objects.all())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class SourceViewSet(APIView):
+    serializer_class = SourceSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        source = Source.objects.all()
+        serializer = self.serializer_class(source,many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def post(self, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+class SourceItemViewSet(APIView):
+    serializer_class = SourceSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        try:
+            source = Source.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(source)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except:
+            return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, *args, **kwargs):
+        try:
+            source = Source.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(source, data=self.request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+        except:
+            return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, *args, **kwargs):
+        try:
+            source = Source.objects.get(id=self.kwargs["id"])
+            source.delete()
+            return Response("Source deleted.", status=status.HTTP_200_OK)
+        except:
+            return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
 
 
 

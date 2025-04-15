@@ -29,6 +29,7 @@ class SourceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
 class LabelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Label
@@ -37,10 +38,21 @@ class LabelSerializer(serializers.ModelSerializer):
 
 class KnowledgeBaseSerializer(serializers.ModelSerializer):
     label = LabelSerializer(read_only=True)
-    Source = SourceSerializer(read_only=True)
+    source = SourceSerializer(read_only=True)
     class Meta:
         model = KnowledgeBase
         fields = '__all__'
+
+
+class SourceFullSerializer(serializers.ModelSerializer):
+    knowledge_base_items = serializers.SerializerMethodField()
+    class Meta:
+        model = Source
+        fields = ['id', 'title', 'description', 'default_label', 'photo', 'file', 'created_at', 'knowledge_base_items']
+    def get_knowledge_base_items(self, obj):
+        kb_items = KnowledgeBase.objects.filter(source=obj)
+        return KnowledgeBaseSerializer(kb_items, many=True).data
+
 
 class AddKnowledgeBaseSerializer(serializers.ModelSerializer):
     class Meta:
