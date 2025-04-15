@@ -1,14 +1,9 @@
 from search.models import SearchData,KnowledgeBase, Label
 from rest_framework import serializers
-from rest_framework_mongoengine.serializers import DocumentSerializer
-
 
 class SearchDataSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
     text = serializers.CharField()
-    #email = serializers.EmailField()
-    #age = serializers.IntegerField()
-    #created_at = serializers.DateTimeField()
 
     def create(self, validated_data):
         """Create a new MongoEngine document."""
@@ -22,24 +17,25 @@ class SearchDataSerializer(serializers.Serializer):
         return instance
 
 
-class SearchSerializer(DocumentSerializer):
+class SearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = SearchData
         fields = '__all__'
 
 
-class LabelSerializer(DocumentSerializer):
+class LabelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Label
         fields = '__all__'
 
-class KnowledgeBaseSerializer(DocumentSerializer):
+
+class KnowledgeBaseSerializer(serializers.ModelSerializer):
     label = LabelSerializer(read_only=True)
     class Meta:
         model = KnowledgeBase
         fields = '__all__'
 
-class AddKnowledgeBaseSerializer(DocumentSerializer):
+class AddKnowledgeBaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = KnowledgeBase
         fields = '__all__'

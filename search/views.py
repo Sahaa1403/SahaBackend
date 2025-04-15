@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny,IsAuthenticated
 from search.models import SearchData,KnowledgeBase, Label
 from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, KnowledgeBaseSerializer, LabelSerializer
 from rest_framework_mongoengine.viewsets import ModelViewSet
@@ -10,48 +10,109 @@ import json
 import urllib.parse
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 
-class LabelViewSet(viewsets.ViewSet):
-    def list(self, request):
+
+class LabelViewSet(APIView):
+    serializer_class = LabelSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
         labels = Label.objects.all()
-        serializer = LabelSerializer(labels, many=True)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = LabelSerializer(data=request.data)
+        serializer = self.serializer_class(labels,many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def post(self, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data)
         if serializer.is_valid():
-            label = serializer.save()
-            return Response(LabelSerializer(label).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
-    def retrieve(self, request, pk=None):
-        label = Label.objects(id=pk).first()
-        if label:
-            return Response(LabelSerializer(label).data)
-        return Response({'error': 'Label not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    def update(self, request, pk=None):
-        label = Label.objects(id=pk).first()
-        if not label:
-            return Response({'error': 'Label not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = LabelSerializer(label, data=request.data)
-        if serializer.is_valid():
-            label = serializer.save()
-            return Response(LabelSerializer(label).data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class LabelItemViewSet(APIView):
+    serializer_class = LabelSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        try:
+            label = Label.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(label)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except:
+            return Response("Label not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
-    def destroy(self, request, pk=None):
-        label = Label.objects(id=pk).first()
-        if label:
+    def put(self, *args, **kwargs):
+        try:
+            label = Label.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(label, data=self.request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+        except:
+            return Response("label not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, *args, **kwargs):
+        try:
+            label = Label.objects.get(id=self.kwargs["id"])
             label.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response({'error': 'Label not found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response("Label deleted.", status=status.HTTP_200_OK)
+        except:
+            return Response("Label not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
+
+
+class KnowledgeBaseViewSet(APIView):
+    serializer_class = KnowledgeBaseSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        kb = KnowledgeBase.objects.all()
+        serializer = self.serializer_class(kb,many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def post(self, *args, **kwargs):
+        serializer = AddKnowledgeBaseSerializer(data=self.request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+
+class KnowledgeBaseItemViewSet(APIView):
+    serializer_class = KnowledgeBaseSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        try:
+            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(kb)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except:
+            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, *args, **kwargs):
+        try:
+            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
+            serializer = AddKnowledgeBaseSerializer(kb, data=self.request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+        except:
+            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, *args, **kwargs):
+        try:
+            kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
+            kb.delete()
+            return Response("KnowledgeBase deleted.", status=status.HTTP_200_OK)
+        except:
+            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+
+"""
 class KnowledgeBaseViewSet(viewsets.ViewSet):
     def list(self, request):
         items = KnowledgeBase.objects.all()
@@ -157,8 +218,7 @@ class KnowledgeBaseViewSet(viewsets.ViewSet):
                 return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
 
         return Response({'error': 'KnowledgeBase item not found'}, status=status.HTTP_404_NOT_FOUND)
-
-
+"""
 
 
 

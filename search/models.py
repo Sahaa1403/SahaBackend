@@ -1,39 +1,16 @@
 from django.db import models
-from mongoengine import Document, StringField, DictField, DateTimeField, ReferenceField
-import datetime
+from accounts.models import User
+
+class SearchData(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True,blank=True)
+    text = models.CharField(max_length=1000)
+    ai_answer = models.JSONField(null=True,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return self.text
 
 
-class SearchData(Document):
-    user_id = StringField(required=False, null=True)
-    text = StringField(max_length=1000)
-    ai_answer = DictField()
-    created_at = DateTimeField(default=datetime.datetime.utcnow)
-
-
-
-class Label(Document):
-    name = StringField(max_length=1000, required=True)
-
-class KnowledgeBase(Document):
-    title = StringField(max_length=1000)
-    category = StringField(choices=["real", "fake"])
-    old_category = StringField(max_length=10)
-    body = StringField(max_length=5000, required=True)
-    source = StringField(max_length=2000)
-    label = ReferenceField(Label)
-    keyword = StringField(max_length=1000,required=False,null=True)
-    location = StringField(max_length=1000, required=False, null=True)
-    created_at = DateTimeField(default=datetime.datetime.utcnow)
-    updated_at = DateTimeField(default=datetime.datetime.utcnow)
-
-    def save(self, *args, **kwargs):
-        self.updated_at = datetime.datetime.utcnow()
-        return super(KnowledgeBase, self).save(*args, **kwargs)
-
-
-
-
-""" 
 class Label(models.Model):
     name = models.CharField(max_length=1000)
     def __str__(self):
@@ -48,8 +25,9 @@ class KnowledgeBase(models.Model):
     body = models.TextField(max_length=5000,blank=False,null=True)
     source = models.CharField(max_length=2000,blank=True,null=True)
     label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
+    keyword = models.CharField(max_length=2000,blank=True,null=True)
+    location = models.CharField(max_length=2000,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
         return self.id + ' | ' + str(self.category) + ' | ' + str(self.created_at)
-"""
