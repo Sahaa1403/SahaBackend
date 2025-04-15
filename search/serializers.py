@@ -54,6 +54,17 @@ class SourceFullSerializer(serializers.ModelSerializer):
         return KnowledgeBaseSerializer(kb_items, many=True).data
 
 
+
+class SourceWithKBSerializer(serializers.ModelSerializer):
+    knowledge_base_items = serializers.SerializerMethodField()
+    class Meta:
+        model = Source
+        fields = ['id', 'title', 'description', 'default_label', 'photo', 'file', 'created_at', 'knowledge_base_items']
+    def get_knowledge_base_items(self, obj):
+        kb_items = KnowledgeBase.objects.filter(source=obj)
+        return KnowledgeBaseSerializer(kb_items, many=True).data
+
+
 class AddKnowledgeBaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = KnowledgeBase

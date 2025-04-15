@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from search.models import SearchData,KnowledgeBase, Label, Source
 from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
-    KnowledgeBaseSerializer, LabelSerializer, SourceSerializer, SourceFullSerializer
+    KnowledgeBaseSerializer, LabelSerializer, SourceSerializer, SourceFullSerializer, SourceWithKBSerializer
 import requests
 import logging
 from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
@@ -67,7 +67,7 @@ class SourceItemViewSet(APIView):
     def get(self, *args, **kwargs):
         try:
             source = Source.objects.get(id=self.kwargs["id"])
-            serializer = self.serializer_class(source)
+            serializer = SourceWithKBSerializer(source)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except:
             return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
