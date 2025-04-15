@@ -1,4 +1,4 @@
-from search.models import SearchData,KnowledgeBase, Label
+from search.models import SearchData,KnowledgeBase,Label,Source
 from rest_framework import serializers
 
 class SearchDataSerializer(serializers.Serializer):
@@ -23,6 +23,12 @@ class SearchSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SourceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Source
+        fields = '__all__'
+
+
 class LabelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Label
@@ -31,6 +37,7 @@ class LabelSerializer(serializers.ModelSerializer):
 
 class KnowledgeBaseSerializer(serializers.ModelSerializer):
     label = LabelSerializer(read_only=True)
+    Source = SourceSerializer(read_only=True)
     class Meta:
         model = KnowledgeBase
         fields = '__all__'

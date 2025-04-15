@@ -11,6 +11,18 @@ class SearchData(models.Model):
         return self.text
 
 
+class Source(models.Model):
+    title = models.CharField(max_length=1000)
+    description = models.TextField(max_length=2000,null=True,blank=True)
+    default_label = models.CharField(max_length=500,null=True,blank=True)
+    photo = models.ImageField(upload_to="source_photo",null=True,blank=True)
+    file = models.FileField(upload_to="source_file",null=True,blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return self.title
+
+
+
 class Label(models.Model):
     name = models.CharField(max_length=1000)
     def __str__(self):
@@ -23,7 +35,7 @@ class KnowledgeBase(models.Model):
     category = models.CharField(max_length=10,blank=True,null=True,choices=cat_choices)
     old_category = models.CharField(max_length=10,blank=True,null=True)
     body = models.TextField(max_length=5000,blank=False,null=True)
-    source = models.CharField(max_length=2000,blank=True,null=True)
+    source = models.ForeignKey(Source,on_delete=models.CASCADE,null=True,blank=True)
     label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
