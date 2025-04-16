@@ -39,6 +39,11 @@ class SourceSerializer(serializers.ModelSerializer):
         model = Source
         fields = '__all__'
 
+class EditSourceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Source
+        fields = '__all__'
+
 
 class CreateSourceSerializer(serializers.ModelSerializer):
     class Meta:
