@@ -1,6 +1,6 @@
 from django.db import models
 from accounts.models import User
-
+from datetime import datetime
 
 class SearchData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True,blank=True)
@@ -62,7 +62,7 @@ class KnowledgeBase(models.Model):
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
     photo = models.ImageField(upload_to="kb_photo", null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=datetime.now, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
         return str(self.id) + ' | ' + str(self.category) + ' | ' + str(self.created_at)
