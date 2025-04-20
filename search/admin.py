@@ -1,11 +1,18 @@
 from django.contrib import admin
-from search.models import SearchData,Label,KnowledgeBase,Source
+from search.models import SearchData,Label,KnowledgeBase,Source,SocialMedia
 
 class SourceAdmin(admin.ModelAdmin):
     list_display = ('title', 'id', 'created_at')
     list_filter = ("created_at",)
     search_fields = ['title', 'description']
 admin.site.register(Source, SourceAdmin)
+
+class SocialMediaAdmin(admin.ModelAdmin):
+    list_display = ('title', 'id', 'created_at')
+    list_filter = ("created_at",)
+    search_fields = ['title', 'description']
+admin.site.register(SocialMedia, SocialMediaAdmin)
+
 
 class SearchDataAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'text', 'created_at')

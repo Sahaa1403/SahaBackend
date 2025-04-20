@@ -2,10 +2,10 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
-from search.models import SearchData,KnowledgeBase, Label, Source
+from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia
 from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
     KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SourceSerializer, \
-    SourceFullSerializer, SourceWithKBSerializer, EditSourceSerializer
+    SourceFullSerializer, SourceWithKBSerializer, EditSourceSerializer,SocialMediaSerializer
 import requests
 import logging
 from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
@@ -23,6 +23,65 @@ class CustomPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
+
+
+
+class SocialmediaFullAPIViewSet(GenericAPIView):
+    queryset = SocialMedia.objects.all()
+    permission_classes = [AllowAny]
+    pagination_class = CustomPagination
+    serializer_class = SocialMediaSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['title', 'created_at']
+    search_fields = ['title', 'description']
+    ordering_fields = ['id', 'created_at']
+    def get(self, *args, **kwargs):
+        sm = self.filter_queryset(SocialMedia.objects.all())
+        page = self.paginate_queryset(sm)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.filter_queryset(SocialMedia.objects.all())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    def post(self, *args, **kwargs):
+        serializer = self.serializer_class(data=self.request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+
+class SocialmediaItemViewSet(APIView):
+    serializer_class = SocialMediaSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        try:
+            sm = SocialMedia.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(sm)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except:
+            return Response("SocialMedia not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, *args, **kwargs):
+        try:
+            sm = SocialMedia.objects.get(id=self.kwargs["id"])
+            serializer = self.serializer_class(sm, data=self.request.data, partial=True)
+            if serializer.is_valid():
+                obj = serializer.save()
+                return Response(self.serializer_class(obj).data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+        except:
+            return Response("SocialMedia not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, *args, **kwargs):
+        try:
+            sm = SocialMedia.objects.get(id=self.kwargs["id"])
+            sm.delete()
+            return Response("SocialMedia deleted.", status=status.HTTP_200_OK)
+        except:
+            return Response("SocialMedia not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
