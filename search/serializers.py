@@ -69,6 +69,7 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
 
 class SourceFullSerializer(serializers.ModelSerializer):
     knowledge_base_items = serializers.SerializerMethodField()
+    common_labels = serializers.SerializerMethodField()
     default_label = LabelSerializer()
     class Meta:
         model = Source

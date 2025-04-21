@@ -111,7 +111,7 @@ class SourceViewSet(APIView):
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
         source = Source.objects.all()
-        serializer = self.serializer_class(source,many=True)
+        serializer = SourceFullSerializer(source,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self, *args, **kwargs):
         serializer = CreateSourceSerializer(data=self.request.data)
