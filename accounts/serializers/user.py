@@ -6,6 +6,7 @@ from django.utils.text import slugify
 from accounts.models import UserType
 
 
+
 class UserTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserType
@@ -22,6 +23,14 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ("active_status","id","username","user_type","user_type_ids","active_type","active_type_id","permissions","name","email","image","organization_unit","cooperation_type","created_at","updated_at","is_active")
         #fields = "__all__"
 
+
+
+class UserShortSerializer(serializers.ModelSerializer):
+    user_type = UserTypeSerializer(many=True, read_only=True)
+    class Meta:
+        model = get_user_model()
+        fields = ("id","username","user_type","name","image")
+        #fields = "__all__"
 
 
 class LoginSerializer(serializers.Serializer):

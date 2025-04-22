@@ -2,10 +2,11 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
-from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia
+from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
 from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
     KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SourceSerializer, \
-    SourceFullSerializer, SourceWithKBSerializer, EditSourceSerializer,SocialMediaSerializer
+    SourceFullSerializer, SourceWithKBSerializer, EditSourceSerializer,SocialMediaSerializer,\
+    KnowledgeBaseLabelUserSerializer, CreateKnowledgeBaseLabelUserSerializer
 import requests
 import logging
 from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
@@ -199,6 +200,37 @@ class LabelItemViewSet(APIView):
             return Response("Label deleted.", status=status.HTTP_200_OK)
         except:
             return Response("Label not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class AddLabelViewSet(APIView):
+    serializer_class = KnowledgeBaseLabelUserSerializer
+    permission_classes = [IsAuthenticated]
+    def delete(self, *args, **kwargs):
+        data = self.request.data
+        user = self.request.user
+        label_id = data["label"]
+        knowledge_base_id = data["knowledge_base"]
+        try:
+            instance = KnowledgeBaseLabelUser.objects.get(
+                label_id=label_id,
+                knowledge_base_id=knowledge_base_id,
+                user=user
+            )
+            instance.delete()
+            return Response({'message': 'Association removed successfully.'}, status=status.HTTP_204_NO_CONTENT)
+        except KnowledgeBaseLabelUser.DoesNotExist:
+            return Response({'error': 'Association not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+    def post(self, *args, **kwargs):
+        data=self.request.data
+        data["user"]=self.request.user.id
+        serializer = CreateKnowledgeBaseLabelUserSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 

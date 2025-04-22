@@ -1,5 +1,5 @@
 from django.contrib import admin
-from search.models import SearchData,Label,KnowledgeBase,Source,SocialMedia
+from search.models import SearchData,Label,KnowledgeBase,Source,SocialMedia,KnowledgeBaseLabelUser
 
 class SourceAdmin(admin.ModelAdmin):
     list_display = ('title', 'id', 'created_at')
@@ -23,6 +23,11 @@ admin.site.register(SearchData, SearchDataAdmin)
 class LabelAdmin(admin.ModelAdmin):
     list_display = ('id', 'name')
 admin.site.register(Label, LabelAdmin)
+
+class KnowledgeBaseLabelUserAdmin(admin.ModelAdmin):
+    list_display = ('knowledge_base','label','user','id')
+admin.site.register(KnowledgeBaseLabelUser, KnowledgeBaseLabelUserAdmin)
+
 
 class KnowledgeBaseAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'category', 'created_at')

@@ -1,5 +1,6 @@
-from search.models import SearchData,KnowledgeBase,Label,Source,SocialMedia
+from search.models import SearchData,KnowledgeBase,Label,Source,SocialMedia,KnowledgeBaseLabelUser
 from rest_framework import serializers
+from accounts.serializers import UserShortSerializer
 
 class SearchDataSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
@@ -58,13 +59,35 @@ class CreateSourceSerializer(serializers.ModelSerializer):
 
 
 
-class KnowledgeBaseSerializer(serializers.ModelSerializer):
+class KnowledgeBaseLabelUserSerializer(serializers.ModelSerializer):
     label = LabelSerializer(read_only=True)
+    user = UserShortSerializer(read_only=True)
+    class Meta:
+        model = KnowledgeBaseLabelUser
+        fields = '__all__'
+
+class CreateKnowledgeBaseLabelUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KnowledgeBaseLabelUser
+        fields = '__all__'
+
+
+class ShortKnowledgeBaseLabelUserSerializer(serializers.ModelSerializer):
+    label = LabelSerializer(read_only=True)
+    class Meta:
+        model = KnowledgeBaseLabelUser
+        fields = '__all__'
+
+class KnowledgeBaseSerializer(serializers.ModelSerializer):
+    label = serializers.SerializerMethodField()
     source = SourceSerializer(read_only=True)
     social_media = SocialMediaShortSerializer(read_only=True)
     class Meta:
         model = KnowledgeBase
         fields = '__all__'
+    def get_label(self, obj):
+        label = KnowledgeBaseLabelUser.objects.filter(knowledge_base=obj)
+        return KnowledgeBaseLabelUserSerializer(label, many=True).data
 
 
 class SourceFullSerializer(serializers.ModelSerializer):
@@ -73,13 +96,25 @@ class SourceFullSerializer(serializers.ModelSerializer):
     default_label = LabelSerializer()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'category', 'default_label', 'common_labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
+        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels' , 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True).data
+
     def get_common_labels(self, obj):
-        labels = Label.objects.filter(knowledgebase__source=obj).distinct()
-        return LabelSerializer(labels, many=True).data
+        request = self.context.get('request', None)
+        user = request.user if request and hasattr(request, 'user') else None
+        labels = KnowledgeBaseLabelUser.objects.filter(knowledge_base__source=obj).exclude(
+            label__name__in=["خبر حقیقت", "خبر نادرست", "خبر مخرب", "خبر دروغین"]).distinct()
+        common_l = []
+        for item in labels:
+            label_data = LabelSerializer(item.label).data
+            common_l.append({
+                "label": label_data,
+                "is_user": item.user == user if user else False
+            })
+        return common_l
+
 
 
 
@@ -89,13 +124,25 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
     common_labels = serializers.SerializerMethodField()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'category', 'default_label', 'common_labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
+        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels' , 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True).data
+
     def get_common_labels(self, obj):
-        labels = Label.objects.filter(knowledgebase__source=obj).distinct()
-        return LabelSerializer(labels, many=True).data
+        request = self.context.get('request', None)
+        user = request.user if request and hasattr(request, 'user') else None
+        labels = KnowledgeBaseLabelUser.objects.filter(knowledge_base__source=obj).exclude(
+            label__name__in=["خبر حقیقت", "خبر نادرست", "خبر مخرب", "خبر دروغین"]).distinct()
+        common_l = []
+        for item in labels:
+            label_data = LabelSerializer(item.label).data
+            common_l.append({
+                "label": label_data,
+                "is_user": item.user == user if user else False
+            })
+        return common_l
+
 
 
 class AddKnowledgeBaseSerializer(serializers.ModelSerializer):
@@ -113,3 +160,7 @@ class SocialMediaSerializer(serializers.ModelSerializer):
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(social_media=obj)
         return KnowledgeBaseSerializer(kb_items, many=True).data
+
+
+
+
