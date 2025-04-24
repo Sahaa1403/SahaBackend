@@ -2,7 +2,7 @@ from django.urls import path
 from search.views import Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
-    SocialmediaItemViewSet,AddLabelViewSet
+    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet
 
 urlpatterns = [
     path('kb/sm', SocialmediaFullAPIViewSet.as_view(), name="sm"),
@@ -11,6 +11,7 @@ urlpatterns = [
     path('kb/sources', SourceViewSet.as_view(), name="sources"),
     path('kb/sources/<int:id>/', SourceItemViewSet.as_view(), name="sources-item"),
     path('kb/add-label', AddLabelViewSet.as_view(), name="add-label"),
+    path('kb/add-source-label', AddSourceLabelViewSet.as_view(), name="add-source-label"),
     path('kb/labels', LabelViewSet.as_view(), name="labels"),
     path('kb/labels/<int:id>/', LabelItemViewSet.as_view(), name="label-item"),
     path('kb/knowledgebase', KnowledgeBaseViewSet.as_view(), name="knowledgebase"),

@@ -245,11 +245,17 @@ CKEDITOR_CONFIGS = {
 
 # CORSHEADERS CONFIGURATION
 ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','liara.run','sahabackend.liara.run','saha.liara.run']
-CORS_ALLOWED_ORIGINS = ["https://liara.run","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
-CSRF_TRUSTED_ORIGINS = ["https://liara.run","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
+CORS_ALLOWED_ORIGINS = ["https://liara.run","http://127.0.0.1:3000","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
+CSRF_TRUSTED_ORIGINS = ["https://liara.run","http://127.0.0.1:3000","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_REPLACE_HTTPS_REFERER = True
 CORS_ALLOW_CREDENTIALS = True
 SESSION_COOKIE_SECURE=True
-CORS_ORIGIN_WHITELIST = ["https://liara.run","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
+CORS_ORIGIN_WHITELIST = ["https://liara.run","http://127.0.0.1","http://127.0.0.1:3000","https://sahabackend.liara.run","https://saha.liara.run"]
 # END CORSHEADERS CONFIGURATION
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-requested-with',
+    'credentials'
+]
