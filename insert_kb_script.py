@@ -3,20 +3,14 @@ from datetime import datetime
 import json
 import time
 
-
-# Replace with your actual base URL and authentication token if needed
 BASE_URL = "https://sahabackend.liara.run"
 CREATE_SOURCE_URL = f"{BASE_URL}/api/v1/search/kb/sources"
 CREATE_KB_URL = f"{BASE_URL}/api/v1/search/kb/knowledgebase"
-
-# Optional headers, add authentication if needed
 headers = {
     "Content-Type": "application/json",
     # "Authorization": "Bearer YOUR_API_TOKEN"
 }
 
-
-# Open and load the JSON file
 with open('KB-init.json', 'r') as file:
     data = json.load(file)
 
@@ -33,7 +27,7 @@ for item in data["data"]:
         source_payload = {
             "title": source_name
         }
-        time.sleep(4)
+        time.sleep(2)
         source_response = requests.post(CREATE_SOURCE_URL, json=source_payload, headers=headers)
         if source_response.status_code == 200:
             source_id = source_response.json()["id"]
@@ -45,21 +39,19 @@ for item in data["data"]:
     else:
         source_id = source_id_cache[source_name]
 
-    # Prepare knowledge_base payload
-    created_at = item["publishedAt"]
-    if len(created_at) == 10:
-        created_at += "T00:00:00Z"
 
+    dt = datetime.fromisoformat(item["publishedAt"].replace('Z', '+00:00'))
     kb_payload = {
-        "title": item["body"],
+        "title": f"{item['body'][:25]}...",
+        "body": item["body"],
+        "category": "real",
         "url": item["url"],
         "source": source_id,
-        "created_at": item["publishedAt"]
+        "created_at": dt.isoformat()
     }
-    time.sleep(4)
-    print(json.dumps(kb_payload, indent=2))
+    time.sleep(1)
     kb_response = requests.post(CREATE_KB_URL, json=kb_payload, headers=headers)
-    if kb_response.status_code == 200:
+    if kb_response.status_code == 201:
         print(f"KnowledgeBase entry created for: {item['body'][:30]}...")
     else:
-        print(f"Failed to create knowledge base for '{item['body'][:30]}...'. Response: {kb_response.text}")
+        print(f"Failed to create knowledge base for '{item['body'][:10]}...'. Response: {kb_response.text}")

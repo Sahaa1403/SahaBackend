@@ -423,7 +423,7 @@ class Search(APIView):
             if response.status_code == 200:
                 ai_result = response.json()
 
-                fact = KnowledgeBase(id=ai_result['fact_id'])
+                fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
                 combined_result = {
                     'id': str(search_item.id),
                     'ai_result': ai_result,
