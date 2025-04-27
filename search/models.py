@@ -22,7 +22,7 @@ class Label(models.Model):
 
 
 class Source(models.Model):
-    title = models.CharField(max_length=1000)
+    title = models.CharField(max_length=90000)
     description = models.TextField(max_length=2000,null=True,blank=True)
     cat_choices = (("real", "real"), ("fake", "fake"),)
     category = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
@@ -51,16 +51,17 @@ class SocialMedia(models.Model):
 
 
 class KnowledgeBase(models.Model):
-    title = models.CharField(max_length=1000,blank=True,null=True)
+    title = models.CharField(max_length=90000,blank=True,null=True)
     cat_choices = (("real","real"),("fake","fake"),)
     category = models.CharField(max_length=10,blank=True,null=True,choices=cat_choices)
     old_category = models.CharField(max_length=10,blank=True,null=True)
-    body = models.TextField(max_length=5000,blank=False,null=True)
+    body = models.TextField(max_length=90000,blank=False,null=True)
     social_media = models.ForeignKey(SocialMedia, on_delete=models.CASCADE, null=True, blank=True)
     source = models.ForeignKey(Source,on_delete=models.CASCADE,null=True,blank=True)
     #label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
+    url = models.URLField(blank=True,null=True)
     photo = models.ImageField(upload_to="kb_photo", null=True, blank=True)
     created_at = models.DateTimeField(default=datetime.now, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
