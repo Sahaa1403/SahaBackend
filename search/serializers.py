@@ -1,6 +1,8 @@
 from search.models import SearchData,KnowledgeBase,Label,Source,SocialMedia,KnowledgeBaseLabelUser
 from rest_framework import serializers
 from accounts.serializers import UserShortSerializer
+from django.db.models import Count
+
 
 class SearchDataSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
@@ -85,9 +87,28 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = KnowledgeBase
         fields = '__all__'
+
+    def get_label(self, obj):
+        # Aggregate labels and count them
+        labels = (
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base=obj)
+            .values('label__id', 'label__name')
+            .annotate(count=Count('id'))
+        )
+        return [
+            {
+                "label_id": label["label__id"],
+                "label_name": label["label__name"],
+                "count": label["count"],
+            }
+            for label in labels
+        ]
+    """ 
     def get_label(self, obj):
         label = KnowledgeBaseLabelUser.objects.filter(knowledge_base=obj)
         return KnowledgeBaseLabelUserSerializer(label, many=True).data
+    """
 
 
 class SourceFullSerializer(serializers.ModelSerializer):

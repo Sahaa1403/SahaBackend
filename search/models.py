@@ -76,20 +76,8 @@ class KnowledgeBaseLabelUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = ('knowledge_base', 'label', 'user')  # One record per KB-label-user
+        unique_together = ('knowledge_base', 'user')  # One record per KB-user
     def __str__(self):
         return f"{self.knowledge_base.title} - {self.label.name}"
 
 
-
-
-
-class SourceLabelUser(models.Model):
-    source = models.ForeignKey(Source, on_delete=models.CASCADE)
-    label = models.ForeignKey(Label, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ('source', 'label', 'user')  # One record per KB-label-user
-    def __str__(self):
-        return f"{self.source} - {self.label.name}"

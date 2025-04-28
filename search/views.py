@@ -226,11 +226,28 @@ class AddLabelViewSet(APIView):
     def post(self, *args, **kwargs):
         data=self.request.data
         data["user"]=self.request.user.id
-        serializer = CreateKnowledgeBaseLabelUserSerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
+        user_type_names = self.request.user.user_type.values_list('name', flat=True)
+        if not any(name in ['researcher', 'manager'] for name in user_type_names):
+            return Response("You do not have permission to edit the element", status=status.HTTP_406_NOT_ACCEPTABLE)
+        try:
+            # Check if an object already exists for this knowledge_base and user
+            kb_label_user = KnowledgeBaseLabelUser.objects.get(
+                knowledge_base_id=data["knowledge_base"],
+                user_id=data["user"]
+            )
+            # If exists, update the label
+            kb_label_user.label_id = data["label"]
+            kb_label_user.save()
+            serializer = CreateKnowledgeBaseLabelUserSerializer(kb_label_user)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        except KnowledgeBaseLabelUser.DoesNotExist:
+            # If it does not exist, create a new one
+            serializer = CreateKnowledgeBaseLabelUserSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 
