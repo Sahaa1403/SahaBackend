@@ -40,7 +40,7 @@ class SocialmediaFullAPIViewSet(GenericAPIView):
         sm = self.filter_queryset(SocialMedia.objects.all())
         page = self.paginate_queryset(sm)
         if page is not None:
-            serializer = self.serializer_class(page, many=True)
+            serializer = self.serializer_class(page, many=True ,context={'request': self.request})
             return self.get_paginated_response(serializer.data)
         serializer = self.filter_queryset(SocialMedia.objects.all())
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -59,7 +59,7 @@ class SocialmediaItemViewSet(APIView):
     def get(self, *args, **kwargs):
         try:
             sm = SocialMedia.objects.get(id=self.kwargs["id"])
-            serializer = self.serializer_class(sm)
+            serializer = self.serializer_class(sm,context={'request': self.request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         except:
             return Response("SocialMedia not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
@@ -100,7 +100,7 @@ class SourceFullAPIViewSet(GenericAPIView):
         source = self.filter_queryset(Source.objects.all())
         page = self.paginate_queryset(source)
         if page is not None:
-            serializer = self.serializer_class(page, many=True)
+            serializer = self.serializer_class(page, many=True ,context={'request': self.request})
             return self.get_paginated_response(serializer.data)
         serializer = self.filter_queryset(Source.objects.all())
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -112,7 +112,7 @@ class SourceViewSet(APIView):
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
         source = Source.objects.all()
-        serializer = SourceFullSerializer(source,many=True)
+        serializer = SourceFullSerializer(source, many=True ,context={'request': self.request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self, *args, **kwargs):
         serializer = CreateSourceSerializer(data=self.request.data)
@@ -128,7 +128,7 @@ class SourceItemViewSet(APIView):
     def get(self, *args, **kwargs):
         try:
             source = Source.objects.get(id=self.kwargs["id"])
-            serializer = SourceWithKBSerializer(source)
+            serializer = SourceWithKBSerializer(source,context={'request': self.request})
             return Response(serializer.data, status=status.HTTP_200_OK)
         except:
             return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
