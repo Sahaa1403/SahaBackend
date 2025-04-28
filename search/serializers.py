@@ -115,9 +115,10 @@ class SourceFullSerializer(serializers.ModelSerializer):
     knowledge_base_items = serializers.SerializerMethodField()
     common_labels = serializers.SerializerMethodField()
     default_label = LabelSerializer()
+    labels = serializers.SerializerMethodField()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels' , 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
+        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True).data
@@ -135,6 +136,23 @@ class SourceFullSerializer(serializers.ModelSerializer):
                 "is_user": item.user == user if user else False
             })
         return common_l
+
+    def get_labels(self, obj):
+        # Aggregate labels and count them
+        labels = (
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base__source=obj)
+            .values('label__id', 'label__name')
+            .annotate(count=Count('id'))
+        )
+        return [
+            {
+                "label_id": label["label__id"],
+                "label_name": label["label__name"],
+                "count": label["count"],
+            }
+            for label in labels
+        ]
 
 
 
@@ -143,9 +161,10 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
     knowledge_base_items = serializers.SerializerMethodField()
     default_label = LabelSerializer()
     common_labels = serializers.SerializerMethodField()
+    labels = serializers.SerializerMethodField()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels' , 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
+        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True).data
@@ -163,6 +182,25 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
                 "is_user": item.user == user if user else False
             })
         return common_l
+
+    def get_labels(self, obj):
+        # Aggregate labels and count them
+        labels = (
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base__source=obj)
+            .values('label__id', 'label__name')
+            .annotate(count=Count('id'))
+        )
+        return [
+            {
+                "label_id": label["label__id"],
+                "label_name": label["label__name"],
+                "count": label["count"],
+            }
+            for label in labels
+        ]
+
+
 
 
 
