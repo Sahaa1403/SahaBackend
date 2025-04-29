@@ -178,8 +178,8 @@ class SourceItemViewSet(APIView):
             source = Source.objects.get(id=self.kwargs["id"])
             serializer = SourceWithKBSerializer(source,context={'request': self.request})
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except:
-            return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response("Error - {}".format(e), status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, *args, **kwargs):
         try:
