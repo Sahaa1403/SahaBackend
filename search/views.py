@@ -374,10 +374,10 @@ class KnowledgeBaseItemViewSet(APIView):
     def get(self, *args, **kwargs):
         try:
             kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            serializer = self.serializer_class(kb)
+            serializer = self.serializer_class(kb,context={'request': self.request})
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except:
-            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response("KnowledgeBase not found or something went wrong, try again - {}".format(e), status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, *args, **kwargs):
         try:
