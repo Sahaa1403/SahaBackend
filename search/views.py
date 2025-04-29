@@ -34,26 +34,42 @@ class ObjectsNumbersAPIViewSet(APIView):
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
         try:
-            source_id = self.request.GET.get('source', '')
-            social_media_id = self.request.GET.get('social_media', '')
+            filter = self.request.GET.get('filter', '')
 
-            if source_id:
-                kb = KnowledgeBase.objects.filter(source__id=source_id)
-                kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__source__id=source_id)
-            elif social_media_id:
-                kb = KnowledgeBase.objects.filter(social_media__id=social_media_id)
-                kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__social_media__id=social_media_id)
+            if filter == "source":
+                kb = KnowledgeBase.objects.filter(source__isnull=False)
+                kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__source__isnull=False)
+            elif filter == "social_media":
+                kb = KnowledgeBase.objects.filter(social_media__isnull=False)
+                kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__social_media__isnull=False)
             else:
                 kb = KnowledgeBase.objects.all()
                 kbl = KnowledgeBaseLabelUser.objects.all()
 
+            all_count = kb.count()
+            real = kb.filter(category="real").count()
+            dis = kbl.filter(label__name="خبر نادرست").count()
+            mis = kbl.filter(label__name="خبر دروغین").count()
+            mal = kbl.filter(label__name="خبر مخرب").count()
+            other = all_count-(dis+real+mis+mal)
+
+            def percent(count):
+                return round((count / all_count) * 100, 2) if all_count > 0 else 0
+
             data = {
-                "all": kb.count(),
-                "real": kb.filter(category="real").count(),
-                "dis": kbl.filter(label__name="خبر نادرست").count(),
-                "mis": kbl.filter(label__name="خبر دروغین").count(),
-                "mal": kbl.filter(label__name="خبر مخرب").count()
+                "all": all_count,
+                "real": real,
+                "real_percent": percent(real),
+                "dis": dis,
+                "dis_percent": percent(dis),
+                "mis": mis,
+                "mis_percent": percent(mis),
+                "mal": mal,
+                "mal_percent": percent(mal),
+                "other": other,
+                "other_percent": percent(other),
             }
+
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": "Something went wrong, try again - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
