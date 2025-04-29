@@ -27,6 +27,38 @@ class CustomPagination(PageNumberPagination):
 
 
 
+
+
+class ObjectsNumbersAPIViewSet(APIView):
+    serializer_class = SocialMediaSerializer
+    permission_classes = [AllowAny]
+    def get(self, *args, **kwargs):
+        try:
+            source_id = self.request.GET.get('source', '')
+            social_media_id = self.request.GET.get('social_media', '')
+
+            if source_id:
+                kb = KnowledgeBase.objects.filter(source__id=source_id)
+                kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__source__id=source_id)
+            elif social_media_id:
+                kb = KnowledgeBase.objects.filter(social_media__id=social_media_id)
+                kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__social_media__id=social_media_id)
+            else:
+                kb = KnowledgeBase.objects.all()
+                kbl = KnowledgeBaseLabelUser.objects.all()
+
+            data = {
+                "all": kb.count(),
+                "real": kb.filter(category="real").count(),
+                "dis": kbl.filter(label__name="خبر نادرست").count(),
+                "mis": kbl.filter(label__name="خبر دروغین").count(),
+                "mal": kbl.filter(label__name="خبر مخرب").count()
+            }
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": "Something went wrong, try again - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class SocialmediaFullAPIViewSet(GenericAPIView):
     queryset = SocialMedia.objects.all()
     permission_classes = [AllowAny]

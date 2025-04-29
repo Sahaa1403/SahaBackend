@@ -2,9 +2,10 @@ from django.urls import path
 from search.views import Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
-    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet
+    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet
 
 urlpatterns = [
+    path('kb/obj-num', ObjectsNumbersAPIViewSet.as_view(), name="obj-num"),
     path('kb/sm', SocialmediaFullAPIViewSet.as_view(), name="sm"),
     path('kb/sm/<int:id>/', SocialmediaItemViewSet.as_view(), name="sm-item"),
     path('kb/sources-full', SourceFullAPIViewSet.as_view(), name="sources-full"),
