@@ -468,7 +468,7 @@ class Search(APIView):
                 return Response({'error': 'Search field is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Prepare search data
-            search_data = {'user_id': request.user.id if request.user.is_authenticated else None, 'text': search_text}
+            search_data = {'user_id': self.request.user.id if self.request.user.is_authenticated else None, 'text': search_text}
             serializer = SearchSerializer(data=search_data)
             if serializer.is_valid():
                 search_item = serializer.save()
