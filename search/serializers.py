@@ -2,6 +2,7 @@ from search.models import SearchData,KnowledgeBase,Label,Source,SocialMedia,Know
 from rest_framework import serializers
 from accounts.serializers import UserShortSerializer
 from django.db.models import Count
+from collections import defaultdict
 
 
 class SearchDataSerializer(serializers.Serializer):
@@ -177,26 +178,31 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
             .annotate(count=Count('id'))
         )
 
-        # Step 2: Build a mapping label_id -> list of user IDs
-        label_users = {}
+        # Step 2: Build a set of label_ids the current user has used
+        user_labeled_label_ids = set(
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base=obj, user_id=current_user_id)
+            .values_list('label_id', flat=True)
+        ) if current_user_id else set()
+
+        # Step 3: Build a mapping label_id -> list of user IDs
+        label_users = defaultdict(list)
         user_qs = (
             KnowledgeBaseLabelUser.objects
             .filter(knowledge_base=obj)
-            .values('label__id', 'user')
+            .values('label_id', 'user_id')
         )
         for entry in user_qs:
-            label_id = entry['label__id']
-            user_id = entry['user']
-            label_users.setdefault(label_id, []).append(user_id)
+            label_users[entry['label_id']].append(entry['user_id'])
 
-        # Step 3: Combine the count and user list
+        # Step 4: Combine result
         return [
             {
                 "label_id": label["label__id"],
                 "label_name": label["label__name"],
                 "count": label["count"],
                 "users": label_users.get(label["label__id"], []),
-                "is_labeled_by_user": current_user_id in label_users.get(label["label__id"], []),
+                "is_labeled_by_user": label["label__id"] in user_labeled_label_ids,
             }
             for label in labels
         ]
@@ -212,7 +218,8 @@ class SourceFullSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
-        return KnowledgeBaseSerializer(kb_items, many=True).data
+        return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
+        #return KnowledgeBaseSerializer(kb_items, many=True).data
 
     def get_common_labels(self, obj):
         request = self.context.get('request', None)
@@ -264,26 +271,31 @@ class SourceFullSerializer(serializers.ModelSerializer):
             .annotate(count=Count('id'))
         )
 
-        # Step 2: Build a mapping label_id -> list of user IDs
-        label_users = {}
+        # Step 2: Build a set of label_ids the current user has used
+        user_labeled_label_ids = set(
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base__source=obj, user_id=current_user_id)
+            .values_list('label_id', flat=True)
+        ) if current_user_id else set()
+
+        # Step 3: Build a mapping label_id -> list of user IDs
+        label_users = defaultdict(list)
         user_qs = (
             KnowledgeBaseLabelUser.objects
             .filter(knowledge_base__source=obj)
-            .values('label__id', 'user')
+            .values('label_id', 'user_id')
         )
         for entry in user_qs:
-            label_id = entry['label__id']
-            user_id = entry['user']
-            label_users.setdefault(label_id, []).append(user_id)
+            label_users[entry['label_id']].append(entry['user_id'])
 
-        # Step 3: Combine the count and user list
+        # Step 4: Combine result
         return [
             {
                 "label_id": label["label__id"],
                 "label_name": label["label__name"],
                 "count": label["count"],
                 "users": label_users.get(label["label__id"], []),
-                "is_labeled_by_user": current_user_id in label_users.get(label["label__id"], []),
+                "is_labeled_by_user": label["label__id"] in user_labeled_label_ids,
             }
             for label in labels
         ]
@@ -299,7 +311,8 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
-        return KnowledgeBaseSerializer(kb_items, many=True).data
+        return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
+        #return KnowledgeBaseSerializer(kb_items, many=True).data
 
     def get_common_labels(self, obj):
         request = self.context.get('request', None)
@@ -352,26 +365,31 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
             .annotate(count=Count('id'))
         )
 
-        # Step 2: Build a mapping label_id -> list of user IDs
-        label_users = {}
+        # Step 2: Build a set of label_ids the current user has used
+        user_labeled_label_ids = set(
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base__source=obj, user_id=current_user_id)
+            .values_list('label_id', flat=True)
+        ) if current_user_id else set()
+
+        # Step 3: Build a mapping label_id -> list of user IDs
+        label_users = defaultdict(list)
         user_qs = (
             KnowledgeBaseLabelUser.objects
             .filter(knowledge_base__source=obj)
-            .values('label__id', 'user')
+            .values('label_id', 'user_id')
         )
         for entry in user_qs:
-            label_id = entry['label__id']
-            user_id = entry['user']
-            label_users.setdefault(label_id, []).append(user_id)
+            label_users[entry['label_id']].append(entry['user_id'])
 
-        # Step 3: Combine the count and user list
+        # Step 4: Combine result
         return [
             {
                 "label_id": label["label__id"],
                 "label_name": label["label__name"],
                 "count": label["count"],
                 "users": label_users.get(label["label__id"], []),
-                "is_labeled_by_user": current_user_id in label_users.get(label["label__id"], []),
+                "is_labeled_by_user": label["label__id"] in user_labeled_label_ids,
             }
             for label in labels
         ]
@@ -395,7 +413,8 @@ class SocialMediaSerializer(serializers.ModelSerializer):
         fields = ['id', 'title', 'description', 'photo', 'file', 'updated_at', 'created_at', 'labels', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(social_media=obj)
-        return KnowledgeBaseSerializer(kb_items, many=True).data
+        return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
+        #return KnowledgeBaseSerializer(kb_items, many=True).data
 
     def get_labels(self, obj):
         request = self.context.get('request', None)

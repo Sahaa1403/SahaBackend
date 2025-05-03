@@ -159,14 +159,7 @@ class SourceViewSet(APIView):
     serializer_class = SourceSerializer
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
-        source = Source.objects.all()\
-            .select_related('default_label')\
-            .prefetch_related(
-            'knowledgebase_set',
-            'knowledgebase_set__knowledgebaselabeluser_set',
-            'knowledgebase_set__knowledgebaselabeluser_set__label',
-            'knowledgebase_set__knowledgebaselabeluser_set__user',
-        )
+        source = Source.objects.all()
         serializer = SourceFullSerializer(source, many=True ,context={'request': self.request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self, *args, **kwargs):
