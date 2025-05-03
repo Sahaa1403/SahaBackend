@@ -48,9 +48,9 @@ class ObjectsNumbersAPIViewSet(APIView):
 
             all_count = kb.count()
             real = kb.filter(category="real").count()
-            dis = kbl.filter(label__name="خبر نادرست").count()
-            mis = kbl.filter(label__name="خبر دروغین").count()
-            mal = kbl.filter(label__name="خبر مخرب").count()
+            dis = kbl.filter(label__name="فریب دهی").count()
+            mis = kbl.filter(label__name="نادرست").count()
+            mal = kbl.filter(label__name="آسیب رسان").count()
             other = all_count-(dis+real+mis+mal)
 
             def percent(count):
@@ -159,7 +159,14 @@ class SourceViewSet(APIView):
     serializer_class = SourceSerializer
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
-        source = Source.objects.all()
+        source = Source.objects.all()\
+            .select_related('default_label')\
+            .prefetch_related(
+            'knowledgebase_set',
+            'knowledgebase_set__knowledgebaselabeluser_set',
+            'knowledgebase_set__knowledgebaselabeluser_set__label',
+            'knowledgebase_set__knowledgebaselabeluser_set__user',
+        )
         serializer = SourceFullSerializer(source, many=True ,context={'request': self.request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self, *args, **kwargs):

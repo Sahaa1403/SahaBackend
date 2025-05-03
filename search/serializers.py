@@ -134,7 +134,7 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
         labels = KnowledgeBaseLabelUser.objects.filter(
             knowledge_base=obj
         ).exclude(
-            label__name__in=["خبر حقیقت", "خبر نادرست", "خبر مخرب", "خبر دروغین"]
+            label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"]
         ).values(
             'label__id', 'label__name'
         ).annotate(
@@ -172,7 +172,7 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
         # Step 1: Get all labels grouped (correct counting, without 'user')
         labels = (
             KnowledgeBaseLabelUser.objects
-            .filter(knowledge_base=obj, label__name__in=["خبر حقیقت", "خبر نادرست", "خبر مخرب", "خبر دروغین"])
+            .filter(knowledge_base=obj, label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
             .values('label__id', 'label__name')
             .annotate(count=Count('id'))
         )
@@ -221,7 +221,7 @@ class SourceFullSerializer(serializers.ModelSerializer):
         labels = KnowledgeBaseLabelUser.objects.filter(
             knowledge_base__source=obj
         ).exclude(
-            label__name__in=["خبر حقیقت", "خبر نادرست", "خبر مخرب", "خبر دروغین"]
+            label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"]
         ).values(
             'label__id', 'label__name'
         ).annotate(
@@ -308,7 +308,7 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
         labels = KnowledgeBaseLabelUser.objects.filter(
             knowledge_base__source=obj
         ).exclude(
-            label__name__in=["خبر حقیقت", "خبر نادرست", "خبر مخرب", "خبر دروغین"]
+            label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"]
         ).values(
             'label__id', 'label__name'
         ).annotate(
@@ -347,7 +347,7 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
         # Step 1: Get all labels grouped (correct counting, without 'user')
         labels = (
             KnowledgeBaseLabelUser.objects
-            .filter(knowledge_base__source=obj,label__name__in=["خبر حقیقت", "خبر نادرست", "خبر مخرب", "خبر دروغین"])
+            .filter(knowledge_base__source=obj,label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
             .values('label__id', 'label__name')
             .annotate(count=Count('id'))
         )
