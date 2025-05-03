@@ -11,7 +11,7 @@ headers = {
     # "Authorization": "Bearer YOUR_API_TOKEN"
 }
 
-with open('KB-init.json', 'r') as file:
+with open('all_data_NA.json', 'r') as file:
     data = json.load(file)
 
 

@@ -15,8 +15,8 @@ admin.site.register(SocialMedia, SocialMediaAdmin)
 
 
 class SearchDataAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'text', 'created_at')
-    list_filter = ("created_at",)
+    list_display = ('id', 'user', 'text', 'created_at','processed')
+    list_filter = ("created_at","processed")
     search_fields = ['text', 'ai_answer']
 admin.site.register(SearchData, SearchDataAdmin)
 

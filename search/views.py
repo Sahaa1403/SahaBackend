@@ -494,6 +494,7 @@ class Search(APIView):
                     'ai_result': ai_result,
                     'fact_data': KnowledgeBaseSerializer(fact).data
                 }
+                search_item.processed = True
                 search_item.ai_answer = combined_result
                 search_item.save()
                 return Response(combined_result, status=status.HTTP_200_OK)
@@ -504,6 +505,14 @@ class Search(APIView):
         except Exception as e:
             logger.exception("Unexpected error occurred during search")
             return Response({'error': 'Something went wrong, please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, *args, **kwargs):
+        try:
+            search = SearchData.objects.all()
+            serializer = SearchSerializer(search,many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response("Error - {}".format(e), status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -560,6 +569,9 @@ class MediaSearch(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
         except:
             return Response("Something went wrong please try again.", status=status.HTTP_400_BAD_REQUEST)
+
+
+
 
 
 

@@ -4,8 +4,9 @@ from datetime import datetime
 
 class SearchData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True,blank=True)
-    text = models.CharField(max_length=1000)
+    text = models.CharField(max_length=10000)
     photo = models.ImageField(upload_to="Search_photo", null=True, blank=True)
+    processed = models.BooleanField(default=False)
     ai_answer = models.JSONField(null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
