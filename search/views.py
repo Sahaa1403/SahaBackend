@@ -468,7 +468,7 @@ class Search(APIView):
                 return Response({'error': 'Search field is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
             # Prepare search data
-            search_data = {'user_id': self.request.user.id if self.request.user.is_authenticated else None, 'text': search_text}
+            search_data = {'user': self.request.user.id if self.request.user.is_authenticated else None, 'text': search_text}
             serializer = SearchSerializer(data=search_data)
             if serializer.is_valid():
                 search_item = serializer.save()
@@ -504,7 +504,7 @@ class Search(APIView):
 
         except Exception as e:
             logger.exception("Unexpected error occurred during search")
-            return Response({'error': 'Something went wrong, please try again.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get(self, *args, **kwargs):
         try:
