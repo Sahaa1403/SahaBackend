@@ -2,6 +2,7 @@ from django.db import models
 from accounts.models import User
 from datetime import datetime
 
+
 class SearchData(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True,blank=True)
     text = models.CharField(max_length=10000)
@@ -12,7 +13,6 @@ class SearchData(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
         return self.text
-
 
 
 
@@ -37,7 +37,6 @@ class Source(models.Model):
 
 
 
-
 class SocialMedia(models.Model):
     title = models.CharField(max_length=1000)
     description = models.TextField(max_length=2000,null=True,blank=True)
@@ -47,7 +46,6 @@ class SocialMedia(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
         return self.title
-
 
 
 
@@ -80,5 +78,3 @@ class KnowledgeBaseLabelUser(models.Model):
         unique_together = ('knowledge_base', 'user')  # One record per KB-user
     def __str__(self):
         return f"{self.knowledge_base.title} - {self.label.name}"
-
-
