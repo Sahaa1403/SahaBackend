@@ -499,11 +499,15 @@ class Search(APIView):
             if response.status_code == 200:
                 ai_result = response.json()
 
-                fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
+                try:
+                    fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
+                    fact_data = KnowledgeBaseSerializer(fact).data
+                except:
+                    fact_data = None
                 combined_result = {
                     'id': str(search_item.id),
                     'ai_result': ai_result,
-                    'fact_data': KnowledgeBaseSerializer(fact).data
+                    'fact_data': fact_data
                 }
                 search_item.processed = True
                 search_item.ai_answer = combined_result
