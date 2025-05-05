@@ -537,7 +537,6 @@ class Search(APIView):
 
 
 
-
 class MediaSearch(APIView):
     permission_classes = [AllowAny]
     def post(self, *args, **kwargs):
