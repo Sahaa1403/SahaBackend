@@ -16,6 +16,7 @@ from rest_framework.generics import GenericAPIView
 from rest_framework_mongoengine.viewsets import ModelViewSet
 import json
 import urllib.parse
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,16 @@ class CustomPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
+
+    def get_paginated_response(self, data):
+        total_pages = math.ceil(self.page.paginator.count / self.get_page_size(self.request))
+        return Response({
+            'count': self.page.paginator.count,
+            'next': self.get_next_link(),
+            'previous': self.get_previous_link(),
+            'last_page': total_pages,
+            'results': data
+        })
 
 
 

@@ -211,11 +211,12 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
 class SourceFullSerializer(serializers.ModelSerializer):
     knowledge_base_items = serializers.SerializerMethodField()
     common_labels = serializers.SerializerMethodField()
+    common_labels_count = serializers.SerializerMethodField()
     default_label = LabelSerializer()
     labels = serializers.SerializerMethodField()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
+        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'common_labels_count', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
@@ -224,6 +225,8 @@ class SourceFullSerializer(serializers.ModelSerializer):
     def get_common_labels(self, obj):
         request = self.context.get('request', None)
         current_user_id = request.user.id if request and hasattr(request, 'user') else None
+
+        common_labels_count = 0
 
         labels = KnowledgeBaseLabelUser.objects.filter(
             knowledge_base__source=obj
@@ -258,6 +261,14 @@ class SourceFullSerializer(serializers.ModelSerializer):
             }
             for label in labels
         ]
+
+    def get_common_labels_count(self, obj):
+        return (
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base__source=obj)
+            .exclude(label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
+            .count()
+        )
 
     def get_labels(self, obj):
         request = self.context.get('request', None)
