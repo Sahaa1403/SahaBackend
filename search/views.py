@@ -509,6 +509,8 @@ class Search(APIView):
                     'ai_result': ai_result,
                     'fact_data': fact_data
                 }
+                print("===++++++++==")
+                print(ai_result['result'])
                 search_item.processed = True
                 search_item.ai_answer = combined_result
                 search_item.save()
