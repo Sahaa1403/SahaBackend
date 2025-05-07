@@ -537,6 +537,73 @@ class Search(APIView):
 
 
 
+
+class UploadSearch(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        done_item = 0
+        try:
+            json_file = self.request.FILES.get('file')
+            try:
+                file_data = json.load(json_file)
+                for obj in file_data:
+                    search_text = obj["body"]
+
+                    # Prepare search data
+                    search_data = {'user': self.request.user.id if self.request.user.is_authenticated else None,
+                                   'text': search_text}
+                    serializer = SearchSerializer(data=search_data)
+                    if serializer.is_valid():
+                        search_item = serializer.save()
+                    else:
+                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+                    # External AI API request
+                    url = 'http://62.60.198.225:5682/text/check_news'
+                    headers = {
+                        'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                        'Content-Type': 'application/json',
+                    }
+                    payload = {'input_news': search_text}
+
+                    response = requests.post(url, params=payload, headers=headers)
+
+                    if response.status_code == 200:
+                        ai_result = response.json()
+
+                        try:
+                            fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
+                            fact_data = KnowledgeBaseSerializer(fact).data
+                        except:
+                            fact_data = None
+                        combined_result = {
+                            'id': str(search_item.id),
+                            'search_text': search_text,
+                            'ai_result': ai_result,
+                            'fact_data': fact_data
+                        }
+                        if ai_result['result'] == "real":
+                            search_item.result = "real"
+                        else:
+                            search_item.result = "fake"
+                        search_item.processed = True
+                        search_item.ai_answer = combined_result
+                        search_item.save()
+                        done_item += 1
+
+                return Response(f"{done_item} item added.", status=status.HTTP_200_OK)
+
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON file"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            logger.exception("Unexpected error occurred during search")
+            return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
 #----------------------
 
 
