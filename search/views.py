@@ -506,6 +506,7 @@ class Search(APIView):
                     fact_data = None
                 combined_result = {
                     'id': str(search_item.id),
+                    'search_text': search_text,
                     'ai_result': ai_result,
                     'fact_data': fact_data
                 }
