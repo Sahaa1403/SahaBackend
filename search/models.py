@@ -8,6 +8,8 @@ class SearchData(models.Model):
     text = models.CharField(max_length=10000)
     photo = models.ImageField(upload_to="Search_photo", null=True, blank=True)
     processed = models.BooleanField(default=False)
+    cat_choices = (("real", "real"), ("fake", "fake"),)
+    result = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
     ai_answer = models.JSONField(null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
