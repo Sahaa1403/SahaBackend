@@ -612,11 +612,6 @@ class UploadSourceFile(APIView):
         source_serializer = CreateSourceSerializer(data=source_data)
         if source_serializer.is_valid():
             source_item = source_serializer.save()
-
-            print("=======")
-            source_item.id
-            source_item["id"]
-
             done_item = 0
             done_item_in_server = 0
             try:
@@ -636,7 +631,6 @@ class UploadSourceFile(APIView):
                             'source': source_item.id,
                             'category': "real"
                         }
-
                         serializer = AddKnowledgeBaseSerializer(data=kb_data)
                         if serializer.is_valid():
                             item = serializer.save()
@@ -673,6 +667,8 @@ class UploadSourceFile(APIView):
                 return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(source_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
 
 
 
