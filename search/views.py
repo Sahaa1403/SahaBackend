@@ -650,14 +650,12 @@ class UploadSourceFile(APIView):
                                 data = response.json()
                                 done_item_in_server += 1
 
-                            final_data = {
-                                "source": source_serializer.data,
-                                "backend_kb_added": done_item,
-                                "AI_kb_added": done_item_in_server
-                            }
-                            return Response(final_data, status=status.HTTP_200_OK)
-
-                        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+                    final_data = {
+                        "source": source_serializer.data,
+                        "backend_kb_added": done_item,
+                        "AI_kb_added": done_item_in_server
+                    }
+                    return Response(final_data, status=status.HTTP_200_OK)
 
                 except json.JSONDecodeError as e:
                     return Response({"error": "Invalid JSON file - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
