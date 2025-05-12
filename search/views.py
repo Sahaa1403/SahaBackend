@@ -613,11 +613,14 @@ class UploadSourceFile(APIView):
         if source_serializer.is_valid():
             source_item = source_serializer.save()
 
+            print("=======")
+            source_item.id
+            source_item["id"]
+
             done_item = 0
             done_item_in_server = 0
             try:
                 json_file = self.request.FILES.get('file')
-                print("=============")
                 print(json_file.read())
                 json_file.seek(0)
                 try:
