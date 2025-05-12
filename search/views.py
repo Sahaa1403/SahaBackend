@@ -604,6 +604,76 @@ class UploadSearch(APIView):
 
 
 
+class UploadSourceFile(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        source_data = self.request.data
+        source_data["category"] = "real"
+        source_serializer = CreateSourceSerializer(data=source_data)
+        if source_serializer.is_valid():
+            source_item = source_serializer.save()
+
+            done_item = 0
+            done_item_in_server = 0
+            try:
+                json_file = self.request.FILES.get('file')
+                print("=============")
+                print(json_file.read())
+                json_file.seek(0)
+                try:
+                    file_data = json.load(json_file)
+                    for obj in file_data:
+                        search_text = obj["body"]
+
+                        # Prepare search data
+                        kb_data = {
+                            'user': self.request.user.id if self.request.user.is_authenticated else None,
+                            'title': search_text,
+                            'body': search_text,
+                            'source': source_item.id,
+                            'category': "real"
+                        }
+
+                        serializer = AddKnowledgeBaseSerializer(data=kb_data)
+                        if serializer.is_valid():
+                            item = serializer.save()
+                            done_item += 1
+                            url = 'http://62.60.198.225:5682/text/kb/add_news'
+                            headers = {
+                                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                                'Content-Type': 'application/json',
+                            }
+                            payload = {
+                                'category': item.category,
+                                'id': str(item.id),
+                                'body': item.body,
+                            }
+                            response = requests.post(url, params=payload, headers=headers)
+                            if response.status_code == 200:
+                                data = response.json()
+                                done_item_in_server += 1
+
+                            final_data = {
+                                "source": source_serializer.data,
+                                "backend_kb_added": done_item,
+                                "AI_kb_added": done_item_in_server
+                            }
+                            return Response(final_data, status=status.HTTP_200_OK)
+
+                        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+                except json.JSONDecodeError as e:
+                    return Response({"error": "Invalid JSON file - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+            except Exception as e:
+                logger.exception("Unexpected error occurred during search")
+                return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(source_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+
+
+
 #----------------------
 
 

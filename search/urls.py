@@ -3,7 +3,7 @@ from search.views import Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
     SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet,\
-    UploadSearch
+    UploadSearch, UploadSourceFile
 
 urlpatterns = [
     path('kb/obj-num', ObjectsNumbersAPIViewSet.as_view(), name="obj-num"),
@@ -19,6 +19,7 @@ urlpatterns = [
     path('kb/knowledgebase', KnowledgeBaseViewSet.as_view(), name="knowledgebase"),
     path('kb/knowledgebase/<int:id>/', KnowledgeBaseItemViewSet.as_view(), name="knowledgebase-item"),
     path("upload-search", UploadSearch.as_view(), name="upload-search"),
+    path("upload-source", UploadSourceFile.as_view(), name="upload-source"),
     path("search", Search.as_view(), name="search"),
     path("search/<str:id>/", SearchByID.as_view(),name="search_id"),
     path("media-search", MediaSearch.as_view(), name="media-search"),
