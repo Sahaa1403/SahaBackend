@@ -27,7 +27,14 @@ class Label(models.Model):
 class Source(models.Model):
     title = models.CharField(max_length=90000)
     description = models.TextField(max_length=2000,null=True,blank=True)
-    cat_choices = (("real", "real"), ("fake", "fake"),)
+    cat_choices = (
+        ("real", "real"),
+        ("fake", "fake"),
+        ("واقعیت", "واقعیت"),
+        ("نادرست", "نادرست"),
+        ("فریب دهی", "فریب دهی"),
+        ("آسیب رسان", "آسیب رسان")
+    )
     category = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
     default_label = models.ForeignKey(Label, on_delete=models.CASCADE, null=True,blank=True)
     photo = models.ImageField(upload_to="source_photo",null=True,blank=True)

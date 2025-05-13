@@ -663,7 +663,6 @@ class UploadSourceFile(APIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         source_data = self.request.data
-        source_data["category"] = "real"
         source_serializer = CreateSourceSerializer(data=source_data)
         if source_serializer.is_valid():
             source_item = source_serializer.save()
