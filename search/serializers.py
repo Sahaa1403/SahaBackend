@@ -5,6 +5,7 @@ from django.db.models import Count
 from collections import defaultdict
 
 
+
 class SearchDataSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
     text = serializers.CharField()
