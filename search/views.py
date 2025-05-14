@@ -21,6 +21,7 @@ import math
 logger = logging.getLogger(__name__)
 
 
+
 class CustomPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
@@ -654,7 +655,7 @@ class UploadSearch(APIView):
                             search_item.save()
 
                     final_data = {
-                        "socialmedia": socialmedia_item.data,
+                        "social_media": socialmedia_serializer.data,
                         "backend_kb_added": done_item,
                         "AI_kb_added": done_item_in_server
                     }
