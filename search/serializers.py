@@ -101,6 +101,12 @@ class CreateSourceSerializer(serializers.ModelSerializer):
 
 
 
+class CreateSocialMedia(serializers.ModelSerializer):
+    class Meta:
+        model = SocialMedia
+        fields = '__all__'
+
+
 class KnowledgeBaseLabelUserSerializer(serializers.ModelSerializer):
     label = LabelSerializer(read_only=True)
     user = UserShortSerializer(read_only=True)
