@@ -603,9 +603,10 @@ class UploadSearch(APIView):
             done_item = 0
             done_item_in_server = 0
 
-
             try:
                 json_file = self.request.FILES.get('file')
+                print(json_file.read())
+                json_file.seek(0)
                 try:
                     file_data = json.load(json_file)
                     for obj in file_data:
