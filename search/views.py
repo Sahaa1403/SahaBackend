@@ -17,6 +17,10 @@ from rest_framework_mongoengine.viewsets import ModelViewSet
 import json
 import urllib.parse
 import math
+import unicodedata
+import re
+import random
+
 
 logger = logging.getLogger(__name__)
 
@@ -503,61 +507,63 @@ class Search(APIView):
                 try:
                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
                     fact_data = KnowledgeBaseSerializer(fact).data
+
+                    if_foreign = True
+                    for char in fact_data["source"]["title"]:
+                        if char.isalpha():
+                            try:
+                                name = unicodedata.name(char)
+                                if 'LATIN' not in name:
+                                    if_foreign = False
+                                    break  # No need to continue if we already know
+                            except ValueError:
+                                if_foreign = False
+                                break
+                    if if_foreign:
+                        foreign_social = 80
+                        foreign_sites = 95
+                        internal_social = 20
+                        internal_sites = 35
+                    else:
+                        foreign_social = 20
+                        foreign_sites = 35
+                        internal_social = 80
+                        internal_sites = 95
+
+                    def update_with_tolerance(value, tolerance=5):
+                        change = random.randint(0, tolerance)
+                        return value + change if random.choice([True, False]) else value - change
+
+                    radar_chart = {
+                        "foreign_social": update_with_tolerance(foreign_social),
+                        "foreign_sites": update_with_tolerance(foreign_sites),
+                        "internal_social": update_with_tolerance(internal_social),
+                        "internal_sites": update_with_tolerance(internal_sites)
+                    }
+
+                    lbls = []
+                    for lbl in fact_data["labels"]:
+                        lbl_item = {
+                            "name": lbl["label_name"],
+                            "count": lbl["count"],
+                            "percentage": round((lbl["count"] / len(fact_data["labels"])) * 100, 2)
+                        }
+                        lbls.append(lbl_item)
+
+                    chart_data = {
+                        "pie_chart": lbls,
+                        "radar_chart": radar_chart
+                    }
+
                 except:
                     fact_data = None
 
-
-                import unicodedata
-                import re
-                import random
-
-                if_foreign = True
-                for char in fact_data["source"]["title"]:
-                    if char.isalpha():
-                        try:
-                            name = unicodedata.name(char)
-                            if 'LATIN' not in name:
-                                if_foreign = False
-                                break  # No need to continue if we already know
-                        except ValueError:
-                            if_foreign = False
-                            break
-                if if_foreign:
-                    foreign_social = 80
-                    foreign_sites = 95
-                    internal_social = 20
-                    internal_sites = 35
-                else:
-                    foreign_social = 20
-                    foreign_sites = 35
-                    internal_social = 80
-                    internal_sites = 95
-
-                def update_with_tolerance(value, tolerance=5):
-                    change = random.randint(0, tolerance)
-                    return value + change if random.choice([True, False]) else value - change
-
-                radar_chart = {
-                    "foreign_social": update_with_tolerance(foreign_social),
-                    "foreign_sites": update_with_tolerance(foreign_sites),
-                    "internal_social": update_with_tolerance(internal_social),
-                    "internal_sites": update_with_tolerance(internal_sites)
-                }
-
-
-                lbls = []
-                for lbl in fact_data["labels"]:
-                    lbl_item = {
-                        "name":lbl["label_name"],
-                        "count":lbl["count"],
-                        "percentage": round((lbl["count"] / len(fact_data["labels"])) * 100, 2)
+                    chart_data = {
+                        "pie_chart": None,
+                        "radar_chart": None
                     }
-                    lbls.append(lbl_item)
 
-                chart_data = {
-                    "pie_chart":lbls,
-                    "radar_chart": radar_chart
-                }
+
 
                 combined_result = {
                     'id': str(search_item.id),
