@@ -45,7 +45,6 @@ class Source(models.Model):
         return self.title
 
 
-
 class SocialMedia(models.Model):
     title = models.CharField(max_length=1000)
     description = models.TextField(max_length=2000,null=True,blank=True)
@@ -63,7 +62,7 @@ class KnowledgeBase(models.Model):
     cat_choices = (("real","real"),("fake","fake"),)
     category = models.CharField(max_length=10,blank=True,null=True,choices=cat_choices)
     old_category = models.CharField(max_length=10,blank=True,null=True)
-    body = models.TextField(max_length=90000,blank=False,null=True)
+    body = models.TextField(max_length=90000)
     social_media = models.ForeignKey(SocialMedia, on_delete=models.CASCADE, null=True, blank=True)
     source = models.ForeignKey(Source,on_delete=models.CASCADE,null=True,blank=True)
     #label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
