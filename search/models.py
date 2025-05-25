@@ -17,7 +17,6 @@ class SearchData(models.Model):
         return self.text
 
 
-
 class Label(models.Model):
     name = models.CharField(max_length=1000)
     def __str__(self):
