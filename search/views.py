@@ -346,6 +346,27 @@ class AddSourceLabelViewSet(APIView):
 
 
 
+class KnowledgeBaseFullAPIViewSet(GenericAPIView):
+    queryset = KnowledgeBase.objects.all()
+    permission_classes = [AllowAny]
+    pagination_class = CustomPagination
+    serializer_class = KnowledgeBaseSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['category', 'source', 'social_media', 'created_at']
+    search_fields = ['title', 'body']
+    ordering_fields = ['id', 'created_at']
+
+    def get(self, *args, **kwargs):
+        kb = self.filter_queryset(KnowledgeBase.objects.all())
+        page = self.paginate_queryset(kb)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True ,context={'request': self.request})
+            return self.get_paginated_response(serializer.data)
+        serializer = self.filter_queryset(KnowledgeBase.objects.all())
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
 
 class KnowledgeBaseViewSet(APIView):
     serializer_class = KnowledgeBaseSerializer
