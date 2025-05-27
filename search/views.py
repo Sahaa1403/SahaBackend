@@ -156,7 +156,7 @@ class SourceFullAPIViewSet(GenericAPIView):
     pagination_class = CustomPagination
     serializer_class = SourceFullSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['title', 'created_at']
+    filterset_fields = ['title', 'created_at','category']
     search_fields = ['title', 'description']
     ordering_fields = ['id', 'created_at']
 

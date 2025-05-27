@@ -129,6 +129,7 @@ class ShortKnowledgeBaseLabelUserSerializer(serializers.ModelSerializer):
 class KnowledgeBaseSerializer(serializers.ModelSerializer):
     labels = serializers.SerializerMethodField()
     common_labels = serializers.SerializerMethodField()
+    common_labels_count = serializers.SerializerMethodField()
     source = SourceSerializer(read_only=True)
     social_media = SocialMediaShortSerializer(read_only=True)
     class Meta:
@@ -172,6 +173,15 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
             }
             for label in labels
         ]
+
+
+    def get_common_labels_count(self, obj):
+        return (
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base=obj)
+            .exclude(label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
+            .count()
+        )
 
     def get_labels(self, obj):
         request = self.context.get('request', None)
