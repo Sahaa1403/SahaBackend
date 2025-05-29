@@ -612,7 +612,7 @@ class Search(APIView):
 
     def get(self, *args, **kwargs):
         try:
-            search = SearchData.objects.all()
+            search = SearchData.objects.filter(user=self.request.user)
             serializer = SearchSerializer(search,many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
