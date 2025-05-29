@@ -67,7 +67,8 @@ class ObjectsNumbersAPIViewSet(APIView):
             dis = kbl.filter(label__name="فریب دهی").count()
             mis = kbl.filter(label__name="نادرست").count()
             mal = kbl.filter(label__name="آسیب رسان").count()
-            other = all_count-(dis+real+mis+mal)
+            other = max(0, all_count - (dis + real + mis + mal))
+
 
             def percent(count):
                 return round((count / all_count) * 100, 2) if all_count > 0 else 0
