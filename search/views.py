@@ -105,10 +105,12 @@ class SocialmediaFullAPIViewSet(GenericAPIView):
         sm = self.filter_queryset(SocialMedia.objects.all())
         page = self.paginate_queryset(sm)
         if page is not None:
-            serializer = self.serializer_class(page, many=True ,context={'request': self.request})
-            return self.get_paginated_response(serializer.data)
+            serializer = self.serializer_class(page, many=True, context={'request': self.request})
+            filtered_data = [item for item in serializer.data if item['knowledge_base_items']]
+            return self.get_paginated_response(filtered_data)
         serializer = self.filter_queryset(SocialMedia.objects.all())
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        filtered_data = [item for item in serializer.data if item['knowledge_base_items']]
+        return Response(filtered_data, status=status.HTTP_200_OK)
     def post(self, *args, **kwargs):
         serializer = self.serializer_class(data=self.request.data)
         if serializer.is_valid():
@@ -176,9 +178,12 @@ class SourceViewSet(APIView):
     serializer_class = SourceSerializer
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
-        source = Source.objects.all()
-        serializer = SourceFullSerializer(source, many=True ,context={'request': self.request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        sources = Source.objects.all()
+        serializer = SourceFullSerializer(sources, many=True, context={'request': self.request})
+        # Filter out sources with empty knowledge_base_items
+        filtered_data = [item for item in serializer.data if item['knowledge_base_items']]
+        return Response(filtered_data, status=status.HTTP_200_OK)
+    
     def post(self, *args, **kwargs):
         serializer = CreateSourceSerializer(data=self.request.data)
         if serializer.is_valid():
