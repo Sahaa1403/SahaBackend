@@ -15,12 +15,9 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.generics import GenericAPIView
 from rest_framework_mongoengine.viewsets import ModelViewSet
 import json
-import urllib.parse
 import math
 import unicodedata
-import re
 import random
-
 
 logger = logging.getLogger(__name__)
 
@@ -103,14 +100,32 @@ class SocialmediaFullAPIViewSet(GenericAPIView):
     ordering_fields = ['id', 'created_at']
     def get(self, *args, **kwargs):
         sm = self.filter_queryset(SocialMedia.objects.all())
-        page = self.paginate_queryset(sm)
-        if page is not None:
-            serializer = self.serializer_class(page, many=True, context={'request': self.request})
-            filtered_data = [item for item in serializer.data if item['knowledge_base_items']]
-            return self.get_paginated_response(filtered_data)
-        serializer = self.filter_queryset(SocialMedia.objects.all())
+        serializer = self.serializer_class(sm, many=True, context={'request': self.request})
         filtered_data = [item for item in serializer.data if item['knowledge_base_items']]
-        return Response(filtered_data, status=status.HTTP_200_OK)
+        
+        # Manual pagination
+        page_size = self.pagination_class.page_size
+        page_number = self.request.query_params.get('page', 1)
+        try:
+            page_number = int(page_number)
+        except (ValueError, TypeError):
+            page_number = 1
+            
+        start = (page_number - 1) * page_size
+        end = start + page_size
+        
+        paginated_data = filtered_data[start:end]
+        total_count = len(filtered_data)
+        
+        response_data = {
+            'count': total_count,
+            'next': f'?page={page_number + 1}' if end < total_count else None,
+            'previous': f'?page={page_number - 1}' if page_number > 1 else None,
+            'results': paginated_data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+    
     def post(self, *args, **kwargs):
         serializer = self.serializer_class(data=self.request.data)
         if serializer.is_valid():
@@ -174,15 +189,19 @@ class SourceFullAPIViewSet(GenericAPIView):
 
 
 
-class SourceViewSet(APIView):
-    serializer_class = SourceSerializer
+class SourceViewSet(GenericAPIView):
+    serializer_class = SourceFullSerializer
     permission_classes = [AllowAny]
+    pagination_class = CustomPagination
     def get(self, *args, **kwargs):
+    
         sources = Source.objects.all()
-        serializer = SourceFullSerializer(sources, many=True, context={'request': self.request})
-        # Filter out sources with empty knowledge_base_items
-        filtered_data = [item for item in serializer.data if item['knowledge_base_items']]
-        return Response(filtered_data, status=status.HTTP_200_OK)
+        page = self.paginate_queryset(sources)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True ,context={'request': self.request})
+            return self.get_paginated_response(serializer.data)
+        serializer = self.filter_queryset(Source.objects.all())
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, *args, **kwargs):
         serializer = CreateSourceSerializer(data=self.request.data)
