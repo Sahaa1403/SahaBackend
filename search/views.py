@@ -18,6 +18,9 @@ import json
 import math
 import unicodedata
 import random
+from django.http import HttpResponse
+from io import BytesIO
+import xlsxwriter
 
 logger = logging.getLogger(__name__)
 
@@ -949,3 +952,90 @@ response_data = {
     "created_data": "Feb 25, 2025"
 }
 """
+
+
+class DownloadSearchData(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        try:
+            logger.info("Starting file download for user: %s", request.user.id)
+            
+            # Get user's search data
+            search_data = SearchData.objects.filter(user=request.user).order_by('-created_at')
+            logger.info("Found %d search records", search_data.count())
+            
+            # Create Excel file in memory
+            output = BytesIO()
+            workbook = xlsxwriter.Workbook(output)
+            worksheet = workbook.add_worksheet('Search History')
+            
+            # Add headers with formatting
+            headers = [
+                'Search ID', 'Search Text', 'Result', 'Created At', 
+                'Updated At', 'Processed', 'AI Result', 'Fact ID', 'Confidence'
+            ]
+            
+            header_format = workbook.add_format({
+                'bold': True,
+                'bg_color': '#D9E1F2',
+                'border': 1,
+                'align': 'center',
+                'valign': 'vcenter'
+            })
+            
+            cell_format = workbook.add_format({
+                'align': 'center',
+                'valign': 'vcenter',
+                'text_wrap': True
+            })
+            
+            # Set column widths
+            widths = [15, 50, 15, 20, 20, 10, 15, 15, 15]
+            for col, width in enumerate(widths):
+                worksheet.set_column(col, col, width)
+                worksheet.write(0, col, headers[col], header_format)
+            
+            # Write data rows
+            for row, item in enumerate(search_data, start=1):
+                ai_result = item.ai_answer.get('ai_result', {}) if item.ai_answer else {}
+                
+                row_data = [
+                    str(item.id),
+                    item.text,
+                    item.result or 'Not processed',
+                    item.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    item.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'Yes' if item.processed else 'No',
+                    ai_result.get('result', 'N/A'),
+                    ai_result.get('fact_id', 'N/A'),
+                    ai_result.get('confidence', 'N/A')
+                ]
+                
+                for col, value in enumerate(row_data):
+                    worksheet.write(row, col, value, cell_format)
+            
+            # Add autofilter
+            worksheet.autofilter(0, 0, len(search_data), len(headers) - 1)
+            
+            # Freeze panes
+            worksheet.freeze_panes(1, 0)
+            
+            workbook.close()
+            
+            # Create the response
+            output.seek(0)
+            response = HttpResponse(
+                output.read(),
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = 'attachment; filename=search_history.xlsx'
+            
+            return response
+            
+        except Exception as e:
+            logger.exception("Error in download: %s", str(e))
+            return Response(
+                {'error': 'Failed to generate Excel file: {}'.format(str(e))},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
