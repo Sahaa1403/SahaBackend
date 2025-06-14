@@ -21,6 +21,7 @@ import random
 from django.http import HttpResponse
 from io import BytesIO
 import xlsxwriter
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -181,13 +182,22 @@ class SourceFullAPIViewSet(GenericAPIView):
     search_fields = ['title', 'description']
     ordering_fields = ['id', 'created_at']
 
+    def get_queryset(self):
+        # Prefetch knowledge base items using the new related_name
+        return Source.objects.prefetch_related(
+            'knowledge_bases'
+        ).annotate(
+            kb_count=models.Count('knowledge_bases')
+        ).filter(kb_count__gt=0).order_by('-id')  # Add default ordering by id
+
     def get(self, *args, **kwargs):
-        source = self.filter_queryset(Source.objects.all())
-        page = self.paginate_queryset(source)
+        queryset = self.get_queryset()
+        filtered_queryset = self.filter_queryset(queryset)
+        page = self.paginate_queryset(filtered_queryset)
         if page is not None:
-            serializer = self.serializer_class(page, many=True ,context={'request': self.request})
+            serializer = self.serializer_class(page, many=True, context={'request': self.request})
             return self.get_paginated_response(serializer.data)
-        serializer = self.filter_queryset(Source.objects.all())
+        serializer = self.serializer_class(filtered_queryset, many=True, context={'request': self.request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -383,6 +393,7 @@ class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     filterset_fields = ['category', 'source', 'social_media', 'created_at']
     search_fields = ['title', 'body']
     ordering_fields = ['id', 'created_at']
+    
 
     def get(self, *args, **kwargs):
         kb = self.filter_queryset(KnowledgeBase.objects.all())
