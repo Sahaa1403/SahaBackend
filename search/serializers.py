@@ -226,18 +226,17 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
 
 
 class SourceFullSerializer(serializers.ModelSerializer):
-    knowledge_base_items = serializers.SerializerMethodField()
+    # knowledge_base_items = serializers.SerializerMethodField()
     common_labels = serializers.SerializerMethodField()
     common_labels_count = serializers.SerializerMethodField()
     default_label = LabelSerializer()
     labels = serializers.SerializerMethodField()
     class Meta:
         model = Source
-        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'common_labels_count', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
-    def get_knowledge_base_items(self, obj):
-        kb_items = KnowledgeBase.objects.filter(source=obj)
-        return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
-        #return KnowledgeBaseSerializer(kb_items, many=True).data
+        fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'common_labels_count', 'labels', 'photo', 'file', 'updated_at', 'created_at']
+    # def get_knowledge_base_items(self, obj):
+    #     kb_items = KnowledgeBase.objects.filter(source=obj)
+    #     return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
 
     def get_common_labels(self, obj):
         request = self.context.get('request', None)
@@ -451,7 +450,6 @@ class SocialMediaSerializer(serializers.ModelSerializer):
     def get_knowledge_base_items(self, obj):
         kb_items = KnowledgeBase.objects.filter(social_media=obj)
         return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
-        #return KnowledgeBaseSerializer(kb_items, many=True).data
 
     def get_labels(self, obj):
         request = self.context.get('request', None)

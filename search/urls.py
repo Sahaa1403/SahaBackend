@@ -3,7 +3,7 @@ from search.views import Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
     SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet,\
-    UploadSearch, UploadSourceFile, KnowledgeBaseFullAPIViewSet
+    UploadSearch, UploadSourceFile, KnowledgeBaseFullAPIViewSet, DownloadSearchData
 
 urlpatterns = [
     path('kb/obj-num', ObjectsNumbersAPIViewSet.as_view(), name="obj-num"),
@@ -25,5 +25,6 @@ urlpatterns = [
     path("search/<str:id>/", SearchByID.as_view(),name="search_id"),
     path("media-search", MediaSearch.as_view(), name="media-search"),
     path("answer/<int:id>/", Answer.as_view(),name="answer"),
+    path("download-search-data", DownloadSearchData.as_view(), name="download-search-data"),
     #path("check-mongodb-connection", check_mongodb_connection, name="check-mongodb-connection"),
 ]
