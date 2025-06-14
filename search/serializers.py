@@ -143,7 +143,7 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
         labels = KnowledgeBaseLabelUser.objects.filter(
             knowledge_base=obj
         ).exclude(
-            label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"]
+            label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"]
         ).values(
             'label__id', 'label__name'
         ).annotate(
@@ -190,11 +190,10 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
         # Step 1: Get all labels grouped (correct counting, without 'user')
         labels = (
             KnowledgeBaseLabelUser.objects
-            .filter(knowledge_base=obj, label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
+            .filter(knowledge_base=obj, label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"])
             .values('label__id', 'label__name')
             .annotate(count=Count('id'))
         )
-
         # Step 2: Build a set of label_ids the current user has used
         user_labeled_label_ids = set(
             KnowledgeBaseLabelUser.objects
@@ -345,11 +344,10 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
     def get_common_labels(self, obj):
         request = self.context.get('request', None)
         current_user_id = request.user.id if request and hasattr(request, 'user') else None
-
         labels = KnowledgeBaseLabelUser.objects.filter(
             knowledge_base__source=obj
         ).exclude(
-            label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"]
+            label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"]
         ).values(
             'label__id', 'label__name'
         ).annotate(
@@ -378,13 +376,14 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
                 "is_labeled_by_user": current_user_id in label_users.get(label["label__id"], []),
             }
             for label in labels
+
         ]
 
     def get_common_labels_count(self, obj):
-        return (
+        return (    
             KnowledgeBaseLabelUser.objects
+            .exclude(label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"])
             .filter(knowledge_base__source=obj)
-            .exclude(label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
             .count()
         )
 
@@ -396,7 +395,7 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
         # Step 1: Get all labels grouped (correct counting, without 'user')
         labels = (
             KnowledgeBaseLabelUser.objects
-            .filter(knowledge_base__source=obj,label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
+            .filter(knowledge_base__source=obj,label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"])
             .values('label__id', 'label__name')
             .annotate(count=Count('id'))
         )
@@ -407,7 +406,6 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
             .filter(knowledge_base__source=obj, user_id=current_user_id)
             .values_list('label_id', flat=True)
         ) if current_user_id else set()
-
         # Step 3: Build a mapping label_id -> list of user IDs
         label_users = defaultdict(list)
         user_qs = (
