@@ -63,7 +63,7 @@ class KnowledgeBase(models.Model):
     old_category = models.CharField(max_length=10,blank=True,null=True)
     body = models.TextField(max_length=90000)
     social_media = models.ForeignKey(SocialMedia, on_delete=models.CASCADE, null=True, blank=True)
-    source = models.ForeignKey(Source,on_delete=models.CASCADE,null=True,blank=True)
+    source = models.ForeignKey(Source,on_delete=models.CASCADE,null=True,blank=True, related_name='knowledge_bases')
     #label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
