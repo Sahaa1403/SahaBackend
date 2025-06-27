@@ -29,10 +29,10 @@ class Source(models.Model):
     cat_choices = (
         ("real", "real"),
         ("fake", "fake"),
-        ("واقعیت", "واقعیت"),
+        ("حقیقت", "حقیقت"),
         ("نادرست", "نادرست"),
-        ("فریب دهی", "فریب دهی"),
-        ("آسیب رسان", "آسیب رسان")
+        ("فریب‌دهی", "فریب‌دهی"),
+        ("مخرب", "مخرب")
     )
     category = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
     default_label = models.ForeignKey(Label, on_delete=models.CASCADE, null=True,blank=True)
@@ -65,6 +65,7 @@ class KnowledgeBase(models.Model):
     social_media = models.ForeignKey(SocialMedia, on_delete=models.CASCADE, null=True, blank=True)
     source = models.ForeignKey(Source,on_delete=models.CASCADE,null=True,blank=True, related_name='knowledge_bases')
     #label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
+    # default_label = models.ForeignKey(Label, on_delete=models.CASCADE)
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
     url = models.URLField(blank=True,null=True)
