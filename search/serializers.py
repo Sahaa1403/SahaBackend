@@ -179,7 +179,7 @@ class KnowledgeBaseSerializer(serializers.ModelSerializer):
         return (
             KnowledgeBaseLabelUser.objects
             .filter(knowledge_base=obj)
-            .exclude(label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
+            .exclude(label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"])
             .count()
         )
 
@@ -246,7 +246,7 @@ class SourceFullSerializer(serializers.ModelSerializer):
         labels = KnowledgeBaseLabelUser.objects.filter(
             knowledge_base__source=obj
         ).exclude(
-            label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"]
+            label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"]
         ).values(
             'label__id', 'label__name'
         ).annotate(
@@ -281,7 +281,7 @@ class SourceFullSerializer(serializers.ModelSerializer):
         return (
             KnowledgeBaseLabelUser.objects
             .filter(knowledge_base__source=obj)
-            .exclude(label__name__in=["واقعیت", "نادرست", "فریب دهی", "آسیب رسان"])
+            .exclude(label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"])
             .count()
         )
 
