@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -247,15 +248,30 @@ class SourceItemViewSet(APIView):
             return Response("Error - {}".format(e), status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, *args, **kwargs):
-        try:
-            source = Source.objects.get(id=self.kwargs["id"])
-            serializer = EditSourceSerializer(source, data=self.request.data, partial=True)
-            if serializer.is_valid():
-                obj = serializer.save()
-                return Response(self.serializer_class(obj).data, status=status.HTTP_200_OK)
+        source = get_object_or_404(Source, id=self.kwargs["id"])
+
+        serializer = EditSourceSerializer(source, data=self.request.data, partial=True)
+        if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
-        except:
-            return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            obj = serializer.save()
+            default_label_id = self.request.data.get("default_label")
+            
+            if default_label_id:
+                try:
+                    default_label = Label.objects.get(id=default_label_id)
+                    knowledge_bases = KnowledgeBase.objects.filter(source=source)
+                    KnowledgeBaseLabelUser.objects.filter(
+                        knowledge_base__in=knowledge_bases, 
+                        user__username= "system_user"
+                    ).update(label=default_label)
+                except Label.DoesNotExist:
+                    return Response(
+                        {"error": "Label with provided default_label ID not found"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        return Response(self.serializer_class(obj).data, status=status.HTTP_200_OK)
 
     def delete(self, *args, **kwargs):
         try:
