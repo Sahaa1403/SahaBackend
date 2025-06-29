@@ -14,6 +14,7 @@ class SearchConfig(AppConfig):
         MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
         MONGO_HOST = "lhotse.liara.cloud"
         MONGO_PORT = 30800
+        import search.signals  # این خط سیگنال رو فعال می‌کنه
 
         connect(
             db=MONGO_DB,
