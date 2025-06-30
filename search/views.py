@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
+from accounts.models.user import User
 from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
 from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
     KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SourceSerializer, \
@@ -22,6 +23,9 @@ from django.http import HttpResponse
 from io import BytesIO
 import xlsxwriter
 from django.db import models
+from django.db import transaction
+from django.db.models import Count, Q, F
+
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +47,6 @@ class CustomPagination(PageNumberPagination):
         })
 
 
-
-
-
 class ObjectsNumbersAPIViewSet(APIView):
     serializer_class = SocialMediaSerializer
     permission_classes = [AllowAny]
@@ -64,10 +65,20 @@ class ObjectsNumbersAPIViewSet(APIView):
                 kbl = KnowledgeBaseLabelUser.objects.all()
 
             all_count = kb.count()
-            real = kb.filter(category="real").count()
-            dis = kbl.filter(label__name="فریب دهی").count()
+            # real = kb.filter(category="real").count()
+            # real = kbl.filter(label__name="حقیقت").count()
+
+            only_haqiqat_kb_ids = KnowledgeBaseLabelUser.objects.values('knowledge_base') \
+                .annotate(
+                    total_labels=Count('id'),
+                    haqiqat_labels=Count('id', filter=Q(label__name="حقیقت"))
+                ).filter(total_labels=F('haqiqat_labels')).values_list('knowledge_base', flat=True)
+
+            # و حالا گرفتن رکوردها
+            real = kbl.filter(knowledge_base__in=only_haqiqat_kb_ids).count()
+            dis = kbl.filter(label__name="فریب‌دهی").count()
             mis = kbl.filter(label__name="نادرست").count()
-            mal = kbl.filter(label__name="آسیب رسان").count()
+            mal = kbl.filter(label__name="مخرب").count()
             other = max(0, all_count - (dis + real + mis + mal))
 
 
@@ -1050,3 +1061,43 @@ class DownloadSearchData(APIView):
                 {'error': 'Failed to generate Excel file: {}'.format(str(e))},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+class AssignDefaultTruthLabelView(APIView): 
+    @transaction.atomic
+    def get(self, request):
+        # بررسی دسترسی کاربر
+        user_type_names = request.user.user_type.values_list('name', flat=True)
+        if not any(name in ['researcher', 'manager'] for name in user_type_names):
+            return Response({"error": "شما اجازه انجام این عملیات را ندارید"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            # دریافت یا ایجاد کاربر پیش‌فرض
+            system_user, created  = User.objects.get_or_create(email="system_user@yourapp.com", defaults={"username": "system_user", "name": "System User", "password": "system_user"})
+            
+            # دریافت یا ایجاد لیبل "حقیقت"
+            truth_label, _ = Label.objects.get_or_create(name="حقیقت")
+        except Exception as e:
+            return Response({"error": f"خطا در ایجاد یا دریافت کاربر یا لیبل: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        kb_ids_with_label = KnowledgeBaseLabelUser.objects.filter(
+                label=truth_label,
+                user=system_user
+            ).values_list('knowledge_base_id', flat=True)
+
+        new_objects = []
+        for kb in KnowledgeBase.objects.exclude(id__in=kb_ids_with_label):
+            new_objects.append(
+                KnowledgeBaseLabelUser(
+                    knowledge_base=kb,
+                    label=truth_label,
+                    user=system_user
+                )
+            )
+
+        KnowledgeBaseLabelUser.objects.bulk_create(new_objects, batch_size=2000)
+
+        return Response({
+            "status": "success",
+            "message": f"{len(new_objects)} records assigned with label 'حقیقت' by system user.",
+            "user_id": system_user.id
+        })
+       
