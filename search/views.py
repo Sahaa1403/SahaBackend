@@ -417,6 +417,8 @@ class AddSourceLabelViewSet(APIView):
 
 class KnowledgeBaseFilter(django_filters.FilterSet):
     label_name = django_filters.CharFilter(method='filter_by_label_name')
+    social_media__isnull = django_filters.BooleanFilter(field_name='social_media', lookup_expr='isnull')
+    source__isnull = django_filters.BooleanFilter(field_name='source', lookup_expr='isnull')
 
     class Meta:
         model = KnowledgeBase
