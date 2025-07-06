@@ -29,7 +29,7 @@ import xlsxwriter
 from django.db import models
 from django.db import transaction
 from django.db.models import Count, Q, F
-from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFilter
+import django_filters
 
 
 logger = logging.getLogger(__name__)
@@ -415,12 +415,26 @@ class AddSourceLabelViewSet(APIView):
         return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
-class KnowledgeBaseFilter(FilterSet):
-    label_name = CharFilter(field_name='knowledgebaselabeluser__label__name', lookup_expr='exact')
+class KnowledgeBaseFilter(django_filters.FilterSet):
+    label_name = django_filters.CharFilter(method='filter_by_label_name')
 
     class Meta:
         model = KnowledgeBase
         fields = ['category', 'source', 'social_media', 'created_at', 'label_name']
+
+    def filter_by_label_name(self, queryset, name, value):
+        if value == 'برچسب دلخواه':
+            return queryset.filter(
+            knowledgebaselabeluser__label__name__in=[
+                name for name in Label.objects.values_list('name', flat=True)
+                if name not in ['حقیقت', 'مخرب', 'نادرست', 'فریب‌دهی']
+            ]
+        )
+        else:
+            # رفتار پیش‌فرض برای سایر label_nameها
+            return queryset.filter(
+                knowledgebaselabeluser__label__name=value
+            )
 
 class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     queryset = KnowledgeBase.objects.all()
