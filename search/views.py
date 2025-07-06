@@ -1,3 +1,6 @@
+from datetime import date, datetime, timedelta
+import os
+import time
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -26,6 +29,7 @@ import xlsxwriter
 from django.db import models
 from django.db import transaction
 from django.db.models import Count, Q, F
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFilter
 
 
 logger = logging.getLogger(__name__)
@@ -80,7 +84,8 @@ class ObjectsNumbersAPIViewSet(APIView):
             dis = kbl.filter(label__name="فریب‌دهی").count()
             mis = kbl.filter(label__name="نادرست").count()
             mal = kbl.filter(label__name="مخرب").count()
-            other = max(0, all_count - (dis + real + mis + mal))
+            other =  kbl.exclude(Q(label__name="حقیقت") | Q(label__name="مخرب") | Q(label__name="فریب‌دهی") | Q(label__name="نادرست")).count()
+            # other = max(0, all_count - (dis + real + mis + mal))
 
 
             def percent(count):
@@ -410,6 +415,12 @@ class AddSourceLabelViewSet(APIView):
         return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
+class KnowledgeBaseFilter(FilterSet):
+    label_name = CharFilter(field_name='knowledgebaselabeluser__label__name', lookup_expr='exact')
+
+    class Meta:
+        model = KnowledgeBase
+        fields = ['category', 'source', 'social_media', 'created_at', 'label_name']
 
 class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     queryset = KnowledgeBase.objects.all()
@@ -417,7 +428,8 @@ class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     pagination_class = CustomPagination
     serializer_class = KnowledgeBaseSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['category', 'source', 'social_media', 'created_at']
+    # filterset_fields = ['category', 'source', 'social_media', 'created_at']
+    filterset_class = KnowledgeBaseFilter  # استفاده از فیلتر سفارشی
     search_fields = ['title', 'body']
     ordering_fields = ['id', 'created_at']
     
@@ -592,7 +604,7 @@ class Search(APIView):
 
                 try:
                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
-                    fact_data = KnowledgeBaseSerializer(fact).data
+                    fact_data = KnowledgeBaseSerializer(fact, context={'request': request}).data
 
                     if_foreign = True
                     for char in fact_data["source"]["title"]:
