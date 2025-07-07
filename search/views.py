@@ -30,7 +30,8 @@ from django.db import models
 from django.db import transaction
 from django.db.models import Count, Q, F
 import django_filters
-
+import json
+from django.core.files.base import ContentFile
 
 logger = logging.getLogger(__name__)
 
@@ -286,9 +287,30 @@ class SourceItemViewSet(APIView):
         except:
             return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
+class GenerateSourceFilesView(APIView):
+    def post(self, request):
+        sources = Source.objects.filter(Q(file__isnull=True) | Q(file=''))
+        for source in sources:
+            kb_bodies = list(
+                source.knowledge_bases.filter(body__isnull=False)
+                .values_list('body', flat=True)
+            )
+            if not kb_bodies:
+                continue
 
+            data = [{"body": body} for body in kb_bodies]
 
+            # تبدیل به JSON
+            json_data = json.dumps(data, ensure_ascii=False, indent=2)
+            file_name = f"source_file/source_{source.id}.json"
 
+            # تبدیل string به فایل برای FileField
+            content_file = ContentFile(json_data.encode('utf-8'), name=file_name)
+
+            # آپلود در فایل‌فیلد
+            source.file.save(file_name, content_file)
+            source.save()
+        return Response({"message": "Files generated for sources without file."}, status=status.HTTP_200_OK)
 class LabelViewSet(APIView):
     serializer_class = LabelSerializer
     permission_classes = [AllowAny]
