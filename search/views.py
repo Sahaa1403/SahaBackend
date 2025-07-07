@@ -1,3 +1,7 @@
+from datetime import date, datetime, timedelta
+import os
+import time
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,6 +29,7 @@ import xlsxwriter
 from django.db import models
 from django.db import transaction
 from django.db.models import Count, Q, F
+import django_filters
 
 
 logger = logging.getLogger(__name__)
@@ -79,7 +84,8 @@ class ObjectsNumbersAPIViewSet(APIView):
             dis = kbl.filter(label__name="فریب‌دهی").count()
             mis = kbl.filter(label__name="نادرست").count()
             mal = kbl.filter(label__name="مخرب").count()
-            other = max(0, all_count - (dis + real + mis + mal))
+            other =  kbl.exclude(Q(label__name="حقیقت") | Q(label__name="مخرب") | Q(label__name="فریب‌دهی") | Q(label__name="نادرست")).count()
+            # other = max(0, all_count - (dis + real + mis + mal))
 
 
             def percent(count):
@@ -247,15 +253,30 @@ class SourceItemViewSet(APIView):
             return Response("Error - {}".format(e), status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, *args, **kwargs):
-        try:
-            source = Source.objects.get(id=self.kwargs["id"])
-            serializer = EditSourceSerializer(source, data=self.request.data, partial=True)
-            if serializer.is_valid():
-                obj = serializer.save()
-                return Response(self.serializer_class(obj).data, status=status.HTTP_200_OK)
+        source = get_object_or_404(Source, id=self.kwargs["id"])
+
+        serializer = EditSourceSerializer(source, data=self.request.data, partial=True)
+        if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
-        except:
-            return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            obj = serializer.save()
+            default_label_id = self.request.data.get("default_label")
+            
+            if default_label_id:
+                try:
+                    default_label = Label.objects.get(id=default_label_id)
+                    knowledge_bases = KnowledgeBase.objects.filter(source=source)
+                    KnowledgeBaseLabelUser.objects.filter(
+                        knowledge_base__in=knowledge_bases, 
+                        user__username= "system_user"
+                    ).update(label=default_label)
+                except Label.DoesNotExist:
+                    return Response(
+                        {"error": "Label with provided default_label ID not found"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+        return Response(self.serializer_class(obj).data, status=status.HTTP_200_OK)
 
     def delete(self, *args, **kwargs):
         try:
@@ -394,6 +415,28 @@ class AddSourceLabelViewSet(APIView):
         return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
+class KnowledgeBaseFilter(django_filters.FilterSet):
+    label_name = django_filters.CharFilter(method='filter_by_label_name')
+    social_media__isnull = django_filters.BooleanFilter(field_name='social_media', lookup_expr='isnull')
+    source__isnull = django_filters.BooleanFilter(field_name='source', lookup_expr='isnull')
+
+    class Meta:
+        model = KnowledgeBase
+        fields = ['category', 'source', 'social_media', 'created_at', 'label_name']
+
+    def filter_by_label_name(self, queryset, name, value):
+        if value == 'برچسب دلخواه':
+            return queryset.filter(
+            knowledgebaselabeluser__label__name__in=[
+                name for name in Label.objects.values_list('name', flat=True)
+                if name not in ['حقیقت', 'مخرب', 'نادرست', 'فریب‌دهی']
+            ]
+        )
+        else:
+            # رفتار پیش‌فرض برای سایر label_nameها
+            return queryset.filter(
+                knowledgebaselabeluser__label__name=value
+            )
 
 class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     queryset = KnowledgeBase.objects.all()
@@ -401,7 +444,8 @@ class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     pagination_class = CustomPagination
     serializer_class = KnowledgeBaseSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['category', 'source', 'social_media', 'created_at']
+    # filterset_fields = ['category', 'source', 'social_media', 'created_at']
+    filterset_class = KnowledgeBaseFilter  # استفاده از فیلتر سفارشی
     search_fields = ['title', 'body']
     ordering_fields = ['id', 'created_at']
     
@@ -576,7 +620,7 @@ class Search(APIView):
 
                 try:
                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
-                    fact_data = KnowledgeBaseSerializer(fact).data
+                    fact_data = KnowledgeBaseSerializer(fact, context={'request': request}).data
 
                     if_foreign = True
                     for char in fact_data["source"]["title"]:

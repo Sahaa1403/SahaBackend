@@ -68,8 +68,9 @@ class KnowledgeBase(models.Model):
     # default_label = models.ForeignKey(Label, on_delete=models.CASCADE)
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
-    url = models.URLField(blank=True,null=True)
+    url = models.URLField(max_length=5000, blank=True,null=True)
     photo = models.ImageField(upload_to="kb_photo", null=True, blank=True)
+    processed = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=datetime.now, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
