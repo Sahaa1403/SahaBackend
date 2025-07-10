@@ -1,8 +1,8 @@
 from django.urls import path
-from search.views import AssignDefaultTruthLabelView, Search, SearchByID, MediaSearch, Answer, \
+from search.views import AssignDefaultTruthLabelView, GenerateSourceFilesView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
-    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet,\
+    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet, UpdateUnprocessedKBView,\
     UploadSearch, UploadSourceFile, KnowledgeBaseFullAPIViewSet, DownloadSearchData   
 
 urlpatterns = [
@@ -27,5 +27,6 @@ urlpatterns = [
     path("answer/<int:id>/", Answer.as_view(),name="answer"),
     path("download-search-data", DownloadSearchData.as_view(), name="download-search-data"),
     path("kb/assign-truth-label", AssignDefaultTruthLabelView.as_view(), name='assign_truth_label'),
+    path('news/everything', NewsAPIView.as_view(), name='news-api'),
     #path("check-mongodb-connection", check_mongodb_connection, name="check-mongodb-connection"),
 ]

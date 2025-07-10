@@ -19,6 +19,7 @@ AUTH_USER_MODEL = "accounts.User"
 APPEND_SLASH = True
 
 
+NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 
 if os.getenv("STAGE") == "PRODUCTION":
@@ -34,12 +35,22 @@ if os.getenv("STAGE") == "PRODUCTION":
     }
 else:
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }
+# CELERY CONFIG
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Tehran'
 
+
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    'trigger-send-kbs-every-minute': {
+        'task': 'search.tasks.trigger_send_kbs',
+        'schedule': crontab(minute='*'),  # هر دقیقه
+    },
+}
 
 
 # APP CONFIGURATION
@@ -65,6 +76,8 @@ THIRD_PARTY_APPS = (
     "storages",
     "rest_framework_swagger",
     "drf_yasg",
+    'django_celery_beat',
+
 )
 LOCAL_APPS = (
     "accounts",

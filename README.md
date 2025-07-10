@@ -49,3 +49,8 @@ docker exec -it container_id python manage.py createsuperuser
 ```bash
 docker-compose up -d --build
 ```
+
+everytime we want to get news from newsApi we call {{base_url}}/api/v1/search/news/everything endpoint
+and execute celery Beat with this command >> celery -A config beat --loglevel=info
+and execute worker of celery with this command >> celery -A config worker --loglevel=info --pool=solo
+
