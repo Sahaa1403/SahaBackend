@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from accounts.models.user import User
+from search.functions.assign_default_labels_to_kbs import assign_default_labels_to_kbs
 from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
 from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
     KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SourceSerializer, \
@@ -30,7 +31,8 @@ from django.db import models
 from django.db import transaction
 from django.db.models import Count, Q, F
 import django_filters
-
+import json
+from django.core.files.base import ContentFile
 
 logger = logging.getLogger(__name__)
 
@@ -286,9 +288,30 @@ class SourceItemViewSet(APIView):
         except:
             return Response("Source not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
+class GenerateSourceFilesView(APIView):
+    def post(self, request):
+        sources = Source.objects.filter(Q(file__isnull=True) | Q(file=''))
+        for source in sources:
+            kb_bodies = list(
+                source.knowledge_bases.filter(body__isnull=False)
+                .values_list('body', flat=True)
+            )
+            if not kb_bodies:
+                continue
 
+            data = [{"body": body} for body in kb_bodies]
 
+            # تبدیل به JSON
+            json_data = json.dumps(data, ensure_ascii=False, indent=2)
+            file_name = f"source_file/source_{source.id}.json"
 
+            # تبدیل string به فایل برای FileField
+            content_file = ContentFile(json_data.encode('utf-8'), name=file_name)
+
+            # آپلود در فایل‌فیلد
+            source.file.save(file_name, content_file)
+            source.save()
+        return Response({"message": "Files generated for sources without file."}, status=status.HTTP_200_OK)
 class LabelViewSet(APIView):
     serializer_class = LabelSerializer
     permission_classes = [AllowAny]
@@ -1144,4 +1167,109 @@ class AssignDefaultTruthLabelView(APIView):
             "message": f"{len(new_objects)} records assigned with label 'حقیقت' by system user.",
             "user_id": system_user.id
         })
-       
+class NewsAPIView(APIView):
+    def get(self, request):
+        # دریافت API Key
+        api_key = os.getenv("NEWS_API_KEY")
+        if not api_key:
+            return Response(
+                {"error": "API KEY تنظیم نشده است"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # تنظیمات درخواست به NewsAPI
+        # in free plan it allow us to get maximum 100 news in a day
+        url = "https://newsapi.org/v2/everything"
+        
+
+        yesterday = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
+        params = {
+            "q": "ایران OR تهران OR جمهوری اسلامی OR شیراز OR اصفهان OR مشهد OR هسته‌ای OR تحریم OR برجام OR اقتصاد OR تورم OR نفت OR صادرات OR ریال OR فرهنگ OR حجاب OR زنان OR حمله OR خاورمیانه OR سپاه OR ایرنا OR تسنیم OR مهرنیوز OR فارسی" ,
+            # 'from': "2025-04-25", active in pro plan for > 30 day
+            "from": yesterday,
+            "apiKey": api_key,
+            # 'language': 'fa', fa not supported
+            # "sources": "isna,irna,mehrnews,tasnimnews,farsnews,asriran,khabaronline,tabnak", iranian source not supported
+            "pageSize": 100,  
+            "sortBy": "publishedAt",
+        }
+
+        all_articles = []
+        try:
+            # ارسال درخواست به NewsAPI
+            response = requests.get(url, params=params)
+            if response.status_code != 200:
+                return Response(
+                    {"error": f"دریافت اخبار ناموفق بود: کد {response.status_code}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            data = response.json()
+            # return Response(data, status=status.HTTP_200_OK)
+
+            total_results = data.get("totalResults", 0)
+            articles = data.get("articles", [])
+            all_articles.extend(articles)
+            # محاسبه تعداد صفحات مورد نیاز
+            # max_pages = request.data.get("max_pages", 3)
+            # pages = min(math.ceil(total_results / 100), int(max_pages))
+
+        #   گرفتن صفحات بعدی
+            # for page in range(2, pages + 1):
+            #     params["page"] = page
+            #     print("page", page+1)
+            #     print("param", params)
+            #     response = requests.get(url, params=params)
+            #     if response.status_code == 200:
+            #         data = response.json()
+            #         all_articles.extend(data.get("articles", []))
+            #     else:
+            #         print(f"خطا در صفحه {page}: کد {response.status_code}")
+
+            with transaction.atomic():
+                kb_objects = []
+                for article in all_articles:
+                    source_name = article['source']['name']
+                    title = article.get('title')
+                    description = article.get('description')
+                    url = article.get('url')
+
+                    # اگر خبر قبلاً ذخیره شده، برو دور بعدی حلقه
+                    if KnowledgeBase.objects.filter(title=title, url=url).exists():
+                        continue
+                    existing_source = Source.objects.filter(title=source_name).first()
+                    if existing_source:
+                        source_obj = existing_source
+                    else:
+                        source_obj = Source.objects.create(title=source_name, category='real')
+
+                    # ساخت شی KnowledgeBase (ولی نه ذخیره فعلاً)
+                    kb = KnowledgeBase(
+                        title=title,
+                        body=description,
+                        url=url,
+                        source=source_obj,
+                        category='real',
+                    )
+                    kb_objects.append(kb)
+
+                # ذخیره همه اخبار به صورت bulk
+                saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
+
+                assign_default_labels_to_kbs(saved_kbs)
+
+            print("count of records insert", len(saved_kbs))
+            # celery BEAT and celery worker should execute concurrent
+            return Response(
+                {
+                    "data": data,
+                    "message": f"{len(saved_kbs)} news add to DB."
+                },
+                status=status.HTTP_200_OK
+                )
+    
+        except requests.RequestException as e:
+            return Response(
+                {"error": f"خطا در دریافت اخبار: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
