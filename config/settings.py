@@ -36,6 +36,11 @@ if os.getenv("STAGE") == "PRODUCTION":
 else:
     DATABASES = {
 # CELERY CONFIG
+
+# CELERY_BROKER_URL = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+# CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+
+
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
@@ -45,11 +50,16 @@ CELERY_TIMEZONE = 'Asia/Tehran'
 
 
 from celery.schedules import crontab
+from datetime import timedelta
 CELERY_BEAT_SCHEDULE = {
-    'trigger-send-kbs-every-minute': {
-        'task': 'search.tasks.trigger_send_kbs',
-        'schedule': crontab(minute='*'),  # هر دقیقه
-    },
+    # 'trigger-send-kbs-every-minute': {
+    #     'task': 'search.tasks.trigger_send_kbs',
+    #     'schedule': crontab(minute='*'),  # هر دقیقه
+    # },
+    'trigger_process_unprocessed_batch-every-35-seconds': {
+        'task': 'search.tasks.trigger_process_unprocessed_batch',
+        'schedule': timedelta(seconds=35),
+    }
 }
 
 
@@ -256,7 +266,7 @@ CKEDITOR_CONFIGS = {
 }
 
 # CORSHEADERS CONFIGURATION
-ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','liara.run','sahabackend.liara.run','saha.liara.run']
+ALLOWED_HOSTS = ['127.0.0.1','0.0.0.0','liara.run','sahabackend.liara.run','saha.liara.run', 'localhost']
 CORS_ALLOWED_ORIGINS = ["https://liara.run","http://127.0.0.1:3000","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
 CSRF_TRUSTED_ORIGINS = ["https://liara.run","http://127.0.0.1:3000","http://127.0.0.1","https://sahabackend.liara.run","https://saha.liara.run"]
 CORS_ORIGIN_ALLOW_ALL = True

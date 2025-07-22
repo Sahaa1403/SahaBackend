@@ -1,8 +1,8 @@
 from django.urls import path
-from search.views import AssignDefaultTruthLabelView, GenerateSourceFilesView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
+from search.views import AssignDefaultTruthLabelView, CheckNewsContentView, ImportNewsContentDetailView, ImportTestNewsContentExcelView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
-    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet, UpdateUnprocessedKBView,\
+    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet,\
     UploadSearch, UploadSourceFile, KnowledgeBaseFullAPIViewSet, DownloadSearchData   
 
 urlpatterns = [
@@ -12,6 +12,7 @@ urlpatterns = [
     path('kb/sources-full', SourceFullAPIViewSet.as_view(), name="sources-full"),
     path('kb/sources', SourceViewSet.as_view(), name="sources"),
     path('kb/sources/<int:id>/', SourceItemViewSet.as_view(), name="sources-item"),
+    path('kb/sources/generate-source-files/', GenerateSourceFilesView.as_view(), name='generate-source-files'),
     path('kb/add-label', AddLabelViewSet.as_view(), name="add-label"),
     path('kb/add-source-label', AddSourceLabelViewSet.as_view(), name="add-source-label"),
     path('kb/labels', LabelViewSet.as_view(), name="labels"),
@@ -28,5 +29,10 @@ urlpatterns = [
     path("download-search-data", DownloadSearchData.as_view(), name="download-search-data"),
     path("kb/assign-truth-label", AssignDefaultTruthLabelView.as_view(), name='assign_truth_label'),
     path('news/everything', NewsAPIView.as_view(), name='news-api'),
+    path('kb/process-unprocessed', UpdateUnprocessedKBView.as_view(), name='process_kb'),
+    path('kb/import-test-news-content', ImportTestNewsContentExcelView.as_view(), name='import-test-news-content'),
+    path('kb/check-news-content', CheckNewsContentView.as_view(), name='check-news-content'),
+    path('kb/import-news-content-detail', ImportNewsContentDetailView.as_view(), name='imported-news-detail'),
+
     #path("check-mongodb-connection", check_mongodb_connection, name="check-mongodb-connection"),
 ]

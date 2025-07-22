@@ -1,16 +1,15 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import os
-import time
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, status
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from accounts.models.user import User
 from search.functions.assign_default_labels_to_kbs import assign_default_labels_to_kbs
 from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
-from search.serializers import SearchSerializer,SearchDataSerializer,AddKnowledgeBaseSerializer, \
-    KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SourceSerializer, \
+from search.serializers import KnowledgeBaseProcessByAiSerializer, SearchSerializer, AddKnowledgeBaseSerializer, \
+    KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SocialMediaProcessByAiSerializer, SourceSerializer, \
     SourceFullSerializer, SourceWithKBSerializer, EditSourceSerializer,SocialMediaSerializer,\
     KnowledgeBaseLabelUserSerializer, CreateKnowledgeBaseLabelUserSerializer, CreateSocialMedia
 import requests
@@ -19,7 +18,6 @@ from rest_framework.pagination import LimitOffsetPagination, PageNumberPaginatio
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.generics import GenericAPIView
-from rest_framework_mongoengine.viewsets import ModelViewSet
 import json
 import math
 import unicodedata
@@ -31,9 +29,20 @@ from django.db import models
 from django.db import transaction
 from django.db.models import Count, Q, F
 import django_filters
+from search.tasks import send_kb_to_ai
 import json
 from django.core.files.base import ContentFile
-
+import openpyxl
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+import openpyxl
+from io import BytesIO
+import requests
+from rest_framework.parsers import MultiPartParser
+from .models import SocialMedia, Label
+from django.shortcuts import get_object_or_404
+from uuid import uuid4
 logger = logging.getLogger(__name__)
 
 
@@ -312,6 +321,8 @@ class GenerateSourceFilesView(APIView):
             source.file.save(file_name, content_file)
             source.save()
         return Response({"message": "Files generated for sources without file."}, status=status.HTTP_200_OK)
+
+
 class LabelViewSet(APIView):
     serializer_class = LabelSerializer
     permission_classes = [AllowAny]
@@ -494,8 +505,11 @@ class KnowledgeBaseViewSet(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     def post(self, *args, **kwargs):
         serializer = AddKnowledgeBaseSerializer(data=self.request.data)
+
         if serializer.is_valid():
             item = serializer.save()
+            print("11111111111111")
+
             url = 'http://62.60.198.225:5682/text/kb/add_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
@@ -506,11 +520,13 @@ class KnowledgeBaseViewSet(APIView):
                 'id': str(item.id),
                 'body': item.body,
             }
+            print("bbbbbbbbbbbbbbbbb")
             response = requests.post(url, params=payload, headers=headers)
+            print("wwwwwwwwwwwwwwww", response.status)
 
             if response.status_code == 200:
                 data = response.json()
-                print(data)
+                print("sssssssssss", data)
                 return Response(KnowledgeBaseSerializer(item).data, status=status.HTTP_201_CREATED)
             else:
                 print("Status Code:", response.status_code)
@@ -526,6 +542,7 @@ class KnowledgeBaseItemViewSet(APIView):
     serializer_class = KnowledgeBaseSerializer
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
+        print("sssssssssss", self.request.user.id)
         try:
             kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
             serializer = self.serializer_class(kb,context={'request': self.request})
@@ -1167,6 +1184,7 @@ class AssignDefaultTruthLabelView(APIView):
             "message": f"{len(new_objects)} records assigned with label 'حقیقت' by system user.",
             "user_id": system_user.id
         })
+    
 class NewsAPIView(APIView):
     def get(self, request):
         # دریافت API Key
@@ -1184,7 +1202,7 @@ class NewsAPIView(APIView):
 
         yesterday = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
         params = {
-            "q": "ایران OR تهران OR جمهوری اسلامی OR شیراز OR اصفهان OR مشهد OR هسته‌ای OR تحریم OR برجام OR اقتصاد OR تورم OR نفت OR صادرات OR ریال OR فرهنگ OR حجاب OR زنان OR حمله OR خاورمیانه OR سپاه OR ایرنا OR تسنیم OR مهرنیوز OR فارسی" ,
+            "q": "ایران OR تهران OR دولت OR شیراز OR اصفهان OR دانش OR هسته‌ای OR کار OR برجام OR زندگی OR رویداد OR کشور OR پیشرفت OR ورزش OR فرهنگ OR خودکفایی OR زنان OR حمله OR خاورمیانه OR سپاه OR ایرنا OR کشاورزی OR فارسی OR سرمایه OR کارگر" ,
             # 'from': "2025-04-25", active in pro plan for > 30 day
             "from": yesterday,
             "apiKey": api_key,
@@ -1273,3 +1291,229 @@ class NewsAPIView(APIView):
                 {"error": f"خطا در دریافت اخبار: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+       
+class UpdateUnprocessedKBView(APIView):
+    def post(self, request):
+
+        # input_date = date(2025, 7, 6)
+        # kbs = KnowledgeBase.objects.filter(
+        #     Q(created_at__date=input_date) & Q(processed=False)
+        # ) [:30]
+
+        now = datetime.now()
+        yesterday = now - timedelta(days=1)
+        kbs = KnowledgeBase.objects.filter(Q(created_at__gte=yesterday) & Q(processed=False))[:2]
+        print("sssssssssssss", len(kbs))
+
+        count = 0
+        # for kb in kbs:
+            # send_kb_to_ai.delay(kb_id=kb.id)
+
+
+            # print("aaaaaaaaaaaaaaaaaaaa", kb.id, kb.category)
+
+            # headers = {
+            # 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+            # 'Content-Type': 'application/json',
+            # }
+
+            # payload = {
+            #     'category': kb.category,
+            #     'id': str(kb.id),
+            #     'body': kb.body,
+            # }
+            # response = requests.post('http://62.60.198.225:5682/text/kb/add_news', params=payload, headers=headers, timeout=(3, 60))
+            # print("2222222222222222222222", response.status_code)
+
+            # if response.status_code == 200:
+            #     kb.processed = True
+            #     kb.save()
+            #     print("✅ API sent for kb.id =", kb.id)
+            # # return
+            # count += 1
+            # continue
+
+        return Response(
+            {"message": f"{count} task(s) sent to Celery."},
+            status=status.HTTP_200_OK
+    )
+    
+    
+
+class ImportTestNewsContentExcelView(APIView):
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({"error": "Excel file is required."}, status=400)
+
+        wb = openpyxl.load_workbook(filename=BytesIO(file_obj.read()))
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        headers = rows[0]
+        data_rows = rows[1:]
+
+        title_idx = headers.index("title")
+        body_idx = headers.index("body")
+        social_idx = headers.index("social_media")
+
+        kb_objects = []
+        batch_id = uuid4()
+        with transaction.atomic():
+            for row in data_rows:
+                title = row[title_idx]
+                body = row[body_idx]
+                social_title = row[social_idx]
+
+                if not (title and body and social_title):
+                    continue
+
+                # حذف دابل کوتیشن‌های اول و آخر فقط اگه هست
+                if title and title.startswith('"') and title.endswith('"'):
+                    title = title[1:-1]
+
+                if body and body.startswith('"') and body.endswith('"'):
+                    body = body[1:-1]
+
+                existing_sm = SocialMedia.objects.filter(title=social_title).first()
+                if existing_sm:
+                    source_obj = existing_sm
+                else:
+                    source_obj = SocialMedia.objects.create(title=social_title)
+
+                kb = KnowledgeBase(
+                            title=title,
+                            body=body,
+                            social_media=source_obj,
+                            import_batch_id=batch_id,
+                            percentages=None,
+                        )
+                
+                kb_objects.append(kb)
+
+        # ذخیره همه اخبار به صورت bulk
+        saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
+        print("✅count of records insert", len(saved_kbs))
+
+        return Response({
+            "message": "File imported successfully. Data is being processed asynchronously.",
+            "batch_id": str(batch_id)},
+            status=status.HTTP_202_ACCEPTED
+            )
+    
+class CheckNewsContentView(APIView):
+    def get(self, request):
+        # batch_id = request.query_params.get('batch_id')
+        # if not batch_id:
+        #     return Response({"error": "batch_id is required"}, status=400)
+        # social_medias = SocialMedia.objects.filter(knowledgebase__import_batch_id=batch_id).distinct()
+        paginator = CustomPagination()
+        social_medias = SocialMedia.objects.all().distinct()
+
+
+        result = []
+        for sm in social_medias:
+            counts = KnowledgeBaseLabelUser.objects.filter(
+                knowledge_base__social_media=sm, 
+                knowledge_base__import_batch_id__isnull=False,
+            ) \
+            .values('label__name') \
+            .annotate(count=Count('id'))
+
+            total = sum(item['count'] for item in counts)
+            if total == 0:
+                continue
+
+            # محاسبه آمار مربوط به همین شبکه اجتماعی
+            total_count = KnowledgeBase.objects.filter(
+                social_media=sm,
+                import_batch_id__isnull=False
+            ).count()
+
+            processed_count = KnowledgeBase.objects.filter(
+                social_media=sm,
+                import_batch_id__isnull=False,
+                processed=True
+            ).count()
+
+            remaining_count = total_count - processed_count
+            
+            serializer = SocialMediaProcessByAiSerializer(sm,context={'request': self.request})
+            
+            result.append({
+                "data": serializer.data,
+                "percentages": {
+                    item['label__name']: round((item['count'] / total) * 100, 2)
+                    for item in counts
+                },
+                "stats": {
+                    "total_count": total_count,
+                    "processed_count": processed_count,
+                    "remaining_count": remaining_count
+                }
+            })
+
+       
+        paginated = paginator.paginate_queryset(result, request)
+        return Response({
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": paginated
+            }, status=status.HTTP_200_OK)
+        # return Response({
+        #     "result": result,
+        # }, status=status.HTTP_200_OK)
+
+
+class ImportNewsContentDetailView(APIView):
+    def get(self, request):
+        # batch_id = request.query_params.get('batch_id')
+        # if not batch_id:
+            # return Response({"error": "batch_id is required"}, status=400)
+        paginator = CustomPagination()
+        
+        social_media_id = request.query_params.get('social_media_id')
+        if not social_media_id:
+            return Response({"error": "social_media_id is required"}, status=400)
+
+        kb_items = KnowledgeBase.objects.filter(
+            import_batch_id__isnull=False,
+            social_media_id=social_media_id,
+        ).select_related('social_media')
+
+        data = []
+        for kb in kb_items:
+            # kb_label_user = KnowledgeBaseLabelUser.objects.filter(
+            #     knowledge_base=kb
+            # ).select_related('label').first()
+            
+            # label = kb_label_user.label.name if kb_label_user else None
+
+            serializer = KnowledgeBaseProcessByAiSerializer(kb ,context={'request': self.request})
+            # data.append({
+            #     "title": kb.title,
+            #     "body": kb.body,
+            #     "Knowledge_base_id": kb.id,
+            #     "social_media_id": kb.social_media.id,
+            #     "social_media": kb.social_media.title,
+            #     "label_id": kb_label_user.label.id,
+            #     "label": label,
+            #     "created_at": kb.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+            #     "updated_at": kb.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+            # })
+
+            data.append({
+                "knowledge_base_item": serializer.data,
+            })
+
+
+        paginated = paginator.paginate_queryset(data, request)
+        return Response({
+                "count": paginator.page.paginator.count,
+                "next": paginator.get_next_link(),
+                "previous": paginator.get_previous_link(),
+                "results": paginated
+            }, status=status.HTTP_200_OK)
+        # return Response(data, status=status.HTTP_200_OK)

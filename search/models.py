@@ -71,6 +71,8 @@ class KnowledgeBase(models.Model):
     url = models.URLField(max_length=5000, blank=True,null=True)
     photo = models.ImageField(upload_to="kb_photo", null=True, blank=True)
     processed = models.BooleanField(default=False)
+    import_batch_id = models.UUIDField(null=True, blank=True)
+    percentages = models.JSONField(null=True, blank=True, verbose_name="درصد هر لیبل", default=None)
     created_at = models.DateTimeField(default=datetime.now, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
