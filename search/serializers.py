@@ -1,3 +1,4 @@
+from accounts.models.user import User
 from search.models import SearchData,KnowledgeBase,Label,Source,SocialMedia,KnowledgeBaseLabelUser
 from rest_framework import serializers
 from accounts.serializers import UserShortSerializer
@@ -484,4 +485,62 @@ class SocialMediaSerializer(serializers.ModelSerializer):
             }
             for label in labels
         ]
+    
+
+class SocialMediaProcessByAiSerializer(serializers.ModelSerializer):
+    knowledge_base_items = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SocialMedia
+        fields = ['id', 'title', 'description', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
+    def get_knowledge_base_items(self, obj):
+        kb_items = KnowledgeBase.objects.filter(social_media=obj)
+        return KnowledgeBaseProcessByAiSerializer(kb_items, many=True, context=self.context).data
+    
+class KnowledgeBaseProcessByAiSerializer(serializers.ModelSerializer):
+    labels = serializers.SerializerMethodField()
+    class Meta:
+        model = KnowledgeBase
+        fields = '__all__'
+
+    def get_labels(self, obj):
+
+        # Step 1: Get all labels grouped (correct counting, without 'user')
+        labels = (
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base=obj, label__name__in=["حقیقت", "نادرست", "فریب‌دهی", "مخرب"])
+            .values('label__id', 'label__name')
+            .annotate(count=Count('id'))
+        )
+        # Step 2: Build a set of label_ids the current user has used
+        ai_client = User.objects.get(email="ai_client@yourapp.com")
+        ai_labeled_label_ids = set(
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base=obj, user=ai_client)
+            .values_list('label_id', flat=True)
+        )
+
+    
+        # Step 3: Build a mapping label_id -> list of user IDs
+        label_users = defaultdict(list)
+        user_qs = (
+            KnowledgeBaseLabelUser.objects
+            .filter(knowledge_base=obj)
+            .values('label_id', 'user_id')
+        )
+        for entry in user_qs:
+            label_users[entry['label_id']].append(entry['user_id'])
+
+        # Step 4: Combine result
+        return [
+            {
+                "label_id": label["label__id"],
+                "label_name": label["label__name"],
+                # "count": label["count"],
+                "is_labeled_by_ai": label["label__id"] in ai_labeled_label_ids,
+            }
+            for label in labels
+        ]
+
+    
 
