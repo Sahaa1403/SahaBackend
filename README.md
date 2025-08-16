@@ -50,7 +50,9 @@ docker exec -it container_id python manage.py createsuperuser
 docker-compose up -d --build
 ```
 
-everytime we want to get news from newsApi we call {{base_url}}/api/v1/search/news/everything endpoint
+everytime we want to get news from newsApi we call https://sahabackend.liara.run/api/v1/search/news/everything endpoint
 and execute celery Beat with this command >> celery -A config beat --loglevel=info
-and execute worker of celery with this command >> celery -A config worker --loglevel=info --pool=solo
+and execute worker of celery with this command >> celery -A config worker --loglevel=info --queues=queue_one --pool=solo
+and for specify the article type and translate articles run another worker with in a new queue with this command >> 
+celery -A config worker --loglevel=info --queues=queue_two --pool=solo
 
