@@ -1,8 +1,8 @@
 from django.urls import path
-from search.views import AssignDefaultTruthLabelView, CheckNewsContentView, ImportNewsContentDetailView, ImportTestNewsContentExcelView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
+from search.views import AssignDefaultTruthLabelView, CheckNewsContentView, DownloadKnowledgeBaseSourceType, GenerateSourceFilesView, ImportNewsContentDetailView, ImportTestNewsContentExcelView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
-    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet,\
+    SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet, UpdateUnprocessedKBView,\
     UploadSearch, UploadSourceFile, KnowledgeBaseFullAPIViewSet, DownloadSearchData   
 
 urlpatterns = [
@@ -33,6 +33,7 @@ urlpatterns = [
     path('kb/import-test-news-content', ImportTestNewsContentExcelView.as_view(), name='import-test-news-content'),
     path('kb/check-news-content', CheckNewsContentView.as_view(), name='check-news-content'),
     path('kb/import-news-content-detail', ImportNewsContentDetailView.as_view(), name='imported-news-detail'),
+    path("download-knowledgebase-source-type", DownloadKnowledgeBaseSourceType.as_view(), name="download-knowledgebase-source-type"),
 
     #path("check-mongodb-connection", check_mongodb_connection, name="check-mongodb-connection"),
 ]

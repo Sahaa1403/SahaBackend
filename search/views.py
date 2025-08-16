@@ -1,12 +1,18 @@
 from datetime import datetime, timedelta
 import os
+import jdatetime
+import zipfile
+import csv
+import tempfile
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from accounts.models.user import User
-from search.functions.assign_default_labels_to_kbs import assign_default_labels_to_kbs
+from search.functions.public_functions import assign_default_labels_to_kbs
+from search.functions.public_functions import create_kb_process_status
 from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
 from search.serializers import KnowledgeBaseProcessByAiSerializer, SearchSerializer, AddKnowledgeBaseSerializer, \
     KnowledgeBaseSerializer, LabelSerializer, CreateSourceSerializer, SocialMediaProcessByAiSerializer, SourceSerializer, \
@@ -14,6 +20,7 @@ from search.serializers import KnowledgeBaseProcessByAiSerializer, SearchSeriali
     KnowledgeBaseLabelUserSerializer, CreateKnowledgeBaseLabelUserSerializer, CreateSocialMedia
 import requests
 import logging
+import time
 from rest_framework.pagination import LimitOffsetPagination, PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -70,7 +77,7 @@ class ObjectsNumbersAPIViewSet(APIView):
         try:
             filter = self.request.GET.get('filter', '')
 
-            if filter == "source":
+            if filter == "sources":
                 kb = KnowledgeBase.objects.filter(source__isnull=False)
                 kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__source__isnull=False)
             elif filter == "social_media":
@@ -508,7 +515,6 @@ class KnowledgeBaseViewSet(APIView):
 
         if serializer.is_valid():
             item = serializer.save()
-            print("11111111111111")
 
             url = 'http://62.60.198.225:5682/text/kb/add_news'
             headers = {
@@ -520,13 +526,10 @@ class KnowledgeBaseViewSet(APIView):
                 'id': str(item.id),
                 'body': item.body,
             }
-            print("bbbbbbbbbbbbbbbbb")
             response = requests.post(url, params=payload, headers=headers)
-            print("wwwwwwwwwwwwwwww", response.status)
 
             if response.status_code == 200:
                 data = response.json()
-                print("sssssssssss", data)
                 return Response(KnowledgeBaseSerializer(item).data, status=status.HTTP_201_CREATED)
             else:
                 print("Status Code:", response.status_code)
@@ -542,7 +545,6 @@ class KnowledgeBaseItemViewSet(APIView):
     serializer_class = KnowledgeBaseSerializer
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
-        print("sssssssssss", self.request.user.id)
         try:
             kb = KnowledgeBase.objects.get(id=self.kwargs["id"])
             serializer = self.serializer_class(kb,context={'request': self.request})
@@ -1188,109 +1190,155 @@ class AssignDefaultTruthLabelView(APIView):
 class NewsAPIView(APIView):
     def get(self, request):
         # دریافت API Key
-        api_key = os.getenv("NEWS_API_KEY")
+        api_key = os.getenv("NEWS_AI_KEY")
         if not api_key:
             return Response(
                 {"error": "API KEY تنظیم نشده است"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        # تنظیمات درخواست به NewsAPI
-        # in free plan it allow us to get maximum 100 news in a day
-        url = "https://newsapi.org/v2/everything"
         
+        url = "https://eventregistry.org/api/v1/article/getArticles"
 
-        yesterday = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
+        
         params = {
-            "q": "ایران OR تهران OR دولت OR شیراز OR اصفهان OR دانش OR هسته‌ای OR کار OR برجام OR زندگی OR رویداد OR کشور OR پیشرفت OR ورزش OR فرهنگ OR خودکفایی OR زنان OR حمله OR خاورمیانه OR سپاه OR ایرنا OR کشاورزی OR فارسی OR سرمایه OR کارگر" ,
-            # 'from': "2025-04-25", active in pro plan for > 30 day
-            "from": yesterday,
             "apiKey": api_key,
-            # 'language': 'fa', fa not supported
-            # "sources": "isna,irna,mehrnews,tasnimnews,farsnews,asriran,khabaronline,tabnak", iranian source not supported
-            "pageSize": 100,  
-            "sortBy": "publishedAt",
+            # "lang": "fas",
+            "conceptUri": "http://en.wikipedia.org/wiki/Iran",
+            # "lang": "mul",
+            "dateStart": "2025-08-01",
+            "dateEnd": "2025-08-16",
+            # "sentiment": "negative",
+            # "locationUri": "http://en.wikipedia.org/wiki/Iran",
+            "isDuplicateFilter": "skipDuplicates",
+            "dataType": ["news"],
+            # "dataType": ["news", "blog", "pr"],
+            # "sourceUri": [ 
+            #     # "farsnews.ir", "tasnimnews.com", "isna.ir", "sharghdaily.com",
+            #     # "irna.ir", "mehrnews.com", "tabnak.ir",
+                
+            #     "foxnews.com", "msnbc.com",
+            #     "cnn.com", "telegraph.co.uk", "dailymail.co.uk", "bbc.com", "theguardian.com",
+            #     "israelhayom.com", "israelnationalnews.com", "haaretz.com",
+            #     "jpost.com", "sputniknews.com", "novayagazeta.ru", "globaltimes.cn",
+            #     "peopledaily.com.cn"
+            #     "aljazeera.com", "reuters.com" 
+            # ],
+            "sourceUri": [ 
+                "radiofarda.com", "ir.voanews.com", "iranintl.com", "iranintl-website.vercel.app",
+                "bbc.com/persian", 
+            ],
+            "sortBy": "rel",
+            "articlesPage": 1,
+            "articlesCount": 100,
         }
 
         all_articles = []
-        try:
-            # ارسال درخواست به NewsAPI
-            response = requests.get(url, params=params)
-            if response.status_code != 200:
-                return Response(
-                    {"error": f"دریافت اخبار ناموفق بود: کد {response.status_code}"},
-                    status=status.HTTP_400_BAD_REQUEST
+        while True:
+            print(f"🔎 Fetching page {params['articlesPage']}...")
+
+            try:
+                response = requests.get(url, params=params)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    # print("ffffffffffffffffffff", data)
+                    # استخراج نتایج و اطلاعات صفحه
+                    articles = data.get("articles", {}).get("results", [])
+                    current_page = data.get("articles", {}).get("page", 1)
+                    total_pages = data.get("articles", {}).get("pages", 1)
+                    all_articles.extend(articles)
+
+                    print(f"✅ Page {current_page} of {total_pages} fetched. Total articles: {len(all_articles)}")
+
+                    if current_page >= total_pages:
+                        print("🎉 All pages have been fetched.")
+                        break
+
+                    params["articlesPage"] += 1
+                    time.sleep(2)  # رعایت ریت‌لیمیت
+                else:
+                    print(f"❌ Error fetching page {params['articlesPage']}: HTTP status code {response.status_code}")
+                    break
+
+            except Exception as e:
+                print(f"⚠️ Unexpected error on page {params['articlesPage']}: {e}")
+                break
+
+        with transaction.atomic():
+            kb_objects = []
+
+            for article in all_articles:
+                uri = article.get('uri')
+                title = article.get('title')
+                body = article.get('body')
+                url = article.get('url')
+
+                # جلوگیری از ذخیره مقالات تکراری بر اساس uri
+                if KnowledgeBase.objects.filter(uri=uri).exists():
+                    continue
+
+                # اطلاعات منبع
+                source_data = article.get('source', {})
+                source_title = source_data.get('title')
+                source_uri = source_data.get('uri')
+                source_data_type = source_data.get('dataType')
+
+                # گرفتن یا ساخت منبع
+                source_obj, _ = Source.objects.get_or_create(
+                    title=source_title,
+                    defaults={
+                        "category": "real",
+                        "source_uri": source_uri,
+                        "source_data_type": source_data_type
+                    }
                 )
 
-            data = response.json()
-            # return Response(data, status=status.HTTP_200_OK)
+                # تبدیل تاریخ انتشار
+                date_time_pub = None
+                try:
+                    date_time_pub = datetime.fromisoformat(article.get("dateTimePub").replace("Z", "+00:00"))
+                except:
+                    pass
 
-            total_results = data.get("totalResults", 0)
-            articles = data.get("articles", [])
-            all_articles.extend(articles)
-            # محاسبه تعداد صفحات مورد نیاز
-            # max_pages = request.data.get("max_pages", 3)
-            # pages = min(math.ceil(total_results / 100), int(max_pages))
-
-        #   گرفتن صفحات بعدی
-            # for page in range(2, pages + 1):
-            #     params["page"] = page
-            #     print("page", page+1)
-            #     print("param", params)
-            #     response = requests.get(url, params=params)
-            #     if response.status_code == 200:
-            #         data = response.json()
-            #         all_articles.extend(data.get("articles", []))
-            #     else:
-            #         print(f"خطا در صفحه {page}: کد {response.status_code}")
-
-            with transaction.atomic():
-                kb_objects = []
-                for article in all_articles:
-                    source_name = article['source']['name']
-                    title = article.get('title')
-                    description = article.get('description')
-                    url = article.get('url')
-
-                    # اگر خبر قبلاً ذخیره شده، برو دور بعدی حلقه
-                    if KnowledgeBase.objects.filter(title=title, url=url).exists():
-                        continue
-                    existing_source = Source.objects.filter(title=source_name).first()
-                    if existing_source:
-                        source_obj = existing_source
-                    else:
-                        source_obj = Source.objects.create(title=source_name, category='real')
-
-                    # ساخت شی KnowledgeBase (ولی نه ذخیره فعلاً)
-                    kb = KnowledgeBase(
-                        title=title,
-                        body=description,
-                        url=url,
-                        source=source_obj,
-                        category='real',
-                    )
-                    kb_objects.append(kb)
-
-                # ذخیره همه اخبار به صورت bulk
-                saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
-
-                assign_default_labels_to_kbs(saved_kbs)
-
-            print("count of records insert", len(saved_kbs))
-            # celery BEAT and celery worker should execute concurrent
-            return Response(
-                {
-                    "data": data,
-                    "message": f"{len(saved_kbs)} news add to DB."
-                },
-                status=status.HTTP_200_OK
+                kb = KnowledgeBase(
+                    title=title,
+                    body=body,
+                    url=url,
+                    source=source_obj,
+                    category="real",
+                    image=article.get("image"),
+                    uri=uri,
+                    lang=article.get("lang"),
+                    is_duplicate=article.get("isDuplicate"),
+                    data_type=article.get("dataType"),
+                    sim=article.get("sim"),
+                    sentiment=article.get("sentiment"),
+                    wgt=article.get("wgt"),
+                    relevance=article.get("relevance"),
+                    authors=article.get("authors"),
+                    date_time_pub=date_time_pub
                 )
-    
-        except requests.RequestException as e:
-            return Response(
-                {"error": f"خطا در دریافت اخبار: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+
+                kb_objects.append(kb)
+
+            # ذخیره همه اخبار به صورت bulk
+            saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
+
+            assign_default_labels_to_kbs(saved_kbs)
+
+            create_kb_process_status(saved_kbs)
+            
+        # print("count of records insert", len(saved_kbs))
+        # celery BEAT and celery worker should execute concurrent
+        return Response(
+            {
+                "data": all_articles,
+                "message": f"{len(saved_kbs)} news add to DB."
+            },
+            status=status.HTTP_200_OK
             )
+    
+        
        
 class UpdateUnprocessedKBView(APIView):
     def post(self, request):
@@ -1456,15 +1504,15 @@ class CheckNewsContentView(APIView):
 
        
         paginated = paginator.paginate_queryset(result, request)
-        return Response({
-                "count": paginator.page.paginator.count,
-                "next": paginator.get_next_link(),
-                "previous": paginator.get_previous_link(),
-                "results": paginated
-            }, status=status.HTTP_200_OK)
         # return Response({
-        #     "result": result,
-        # }, status=status.HTTP_200_OK)
+        #         "count": paginator.page.paginator.count,
+        #         "next": paginator.get_next_link(),
+        #         "previous": paginator.get_previous_link(),
+        #         "results": paginated
+        #     }, status=status.HTTP_200_OK)
+        return Response({
+            "result": result,
+        }, status=status.HTTP_200_OK)
 
 
 class ImportNewsContentDetailView(APIView):
@@ -1510,10 +1558,163 @@ class ImportNewsContentDetailView(APIView):
 
 
         paginated = paginator.paginate_queryset(data, request)
-        return Response({
-                "count": paginator.page.paginator.count,
-                "next": paginator.get_next_link(),
-                "previous": paginator.get_previous_link(),
-                "results": paginated
-            }, status=status.HTTP_200_OK)
-        # return Response(data, status=status.HTTP_200_OK)
+        # return Response({
+        #         "count": paginator.page.paginator.count,
+        #         "next": paginator.get_next_link(),
+        #         "previous": paginator.get_previous_link(),
+        #         "results": paginated
+        #     }, status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK)
+    
+    
+class DownloadKnowledgeBaseSourceType(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # ساخت فایل CSV با encoding مناسب برای فارسی
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='w', newline='', encoding='utf-8-sig')
+        writer = csv.writer(temp)
+
+        # نوشتن عنوان ستون‌ها
+        writer.writerow([
+            'id', 'title', 'body', 'url', 'date_time_pub',
+            'source_id', 'source__title', 'uri', 'is_news',
+            'sim', 'sentiment', 'wgt', 'relevance', 'authors'
+        ])
+
+        # کوئری دیتابیس
+        # queryset = KnowledgeBase.objects.select_related('source').filter(source__isnull=False)[:1000]
+        queryset = KnowledgeBase.objects.select_related('source').filter(source__isnull=False, is_news=True)
+
+
+        def clean_text(text):
+            return text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ') if text else ''
+        for kb in queryset:
+            writer.writerow([
+                str(kb.id),
+                clean_text(str(kb.title)),
+                clean_text(str(kb.body)),
+                str(kb.url),
+                jdatetime.datetime.fromgregorian(datetime=kb.date_time_pub).strftime('%Y-%m-%d') if kb.date_time_pub else '',
+                str(kb.source.id) if kb.source else '',
+                clean_text(str(kb.source.title)) if kb.source else '',
+                str(kb.uri),
+                str(kb.is_news),
+                str(kb.sim),
+                str(kb.sentiment),
+                str(kb.wgt),
+                str(kb.relevance),
+                clean_text(str(kb.authors))
+            ])
+
+        temp.close()
+
+        # باز کردن فایل و ارسال آن
+        f = open(temp.name, 'rb')
+        response = FileResponse(f, content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="knowledgebase.csv"'
+
+        return response
+    
+    # this function get excel files from data in chunk of 1000 record in fromat of ZIP 
+    # def safe_excel_value(self, value):
+    #     if value is None:
+    #         return ''
+    #     if isinstance(value, list):
+    #         return ", ".join(str(v) for v in value)
+    #     return str(value)
+    
+    # def get(self, request):
+    #     # تعداد رکورد در هر فایل اکسل
+    #     chunk_size = 1000
+
+    #     all_data = list(
+    #         KnowledgeBase.objects.select_related('source')
+    #         .filter(source__isnull=False, is_news=True)
+    #         .values(
+    #             'id', 'title', 'body', 'url', 'date_time_pub',
+    #             'source_id','source__title', 'uri', 'is_news',
+    #             'sim', 'sentiment', 'wgt', 'relevance', 'authors'
+    #         )
+    #     )
+        
+    #     headers = [
+    #         'id', 'title', 'body', 'url', 'date_time_pub',
+    #         'source_id','source_title', 'uri', 'is_news',
+    #         'sim', 'sentiment', 'wgt', 'relevance', 'authors'
+    #     ]
+
+    #     # ایجاد فایل zip در حافظه
+    #     zip_buffer = BytesIO()
+    #     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+
+    #         # تقسیم داده‌ها به بخش‌های chunk_size
+    #         for i in range(0, len(all_data), chunk_size):
+    #             chunk = all_data[i:i + chunk_size]
+                
+    #             # ساخت فایل اکسل در حافظه برای هر بخش
+    #             excel_buffer = BytesIO()
+    #             workbook = xlsxwriter.Workbook(excel_buffer)
+    #             worksheet = workbook.add_worksheet('KnowledgeBase')
+
+    #             # فرمت‌ها
+    #             header_format = workbook.add_format({
+    #                 'bold': True,
+    #                 'bg_color': '#D9E1F2',
+    #                 'border': 1,
+    #                 'align': 'center',
+    #                 'valign': 'vcenter'
+    #             })
+    #             cell_format = workbook.add_format({
+    #                 'align': 'center',
+    #                 'valign': 'vcenter',
+    #                 'text_wrap': True
+    #             })
+
+    #             # تنظیم عرض ستون‌ها
+    #             widths = [15, 15, 50, 25, 15, 15, 15, 15, 15, 15, 15, 15, 15, 25]
+    #             for col, width in enumerate(widths):
+    #                 worksheet.set_column(col, col, width)
+
+    #             # نوشتن هدرها
+    #             for col, header in enumerate(headers):
+    #                 worksheet.write(0, col, header, header_format)
+
+    #             # نوشتن داده‌ها
+    #             for row, item in enumerate(chunk, start=1):
+    #                 row_data = [
+    #                     self.safe_excel_value(item['id']),
+    #                     self.safe_excel_value(item['title']),
+    #                     self.safe_excel_value((item['body'] or '')[:1000]),
+    #                     self.safe_excel_value(item['url']),
+    #                     jdatetime.datetime.fromgregorian(datetime=item['date_time_pub']).strftime('%Y-%m-%d') if item['date_time_pub'] else '',
+    #                     self.safe_excel_value(item['source_id']),
+    #                     self.safe_excel_value(item['source__title']),
+    #                     self.safe_excel_value(item['uri']),
+    #                     self.safe_excel_value(item['is_news']),
+    #                     self.safe_excel_value(item['sim']),
+    #                     self.safe_excel_value(item['sentiment']),
+    #                     self.safe_excel_value(item['wgt']),
+    #                     self.safe_excel_value(item['relevance']),
+    #                     self.safe_excel_value(item['authors']),
+    #                 ]
+    #                 for col, value in enumerate(row_data):
+    #                     worksheet.write(row, col, value, cell_format)
+
+    #             # فریز کردن ردیف اول و افزودن autofilter
+    #             worksheet.freeze_panes(1, 0)
+    #             print("xxxxxxxxxxxxxxxxxxxx")
+    #             worksheet.autofilter(0, 0, len(chunk), len(headers) - 1)
+
+    #             workbook.close()
+    #             excel_buffer.seek(0)
+
+    #             # اضافه کردن فایل اکسل به فایل زیپ
+    #             filename = f"KnowledgeBase_part_{i//chunk_size + 1}.xlsx"
+    #             zip_file.writestr(filename, excel_buffer.read())
+
+    #     zip_buffer.seek(0)
+
+    #     response = HttpResponse(zip_buffer, content_type='application/zip')
+    #     response['Content-Disposition'] = 'attachment; filename=KnowledgeBase_export.zip'
+    #     return response
