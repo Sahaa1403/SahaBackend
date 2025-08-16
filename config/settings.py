@@ -35,6 +35,16 @@ if os.getenv("STAGE") == "PRODUCTION":
     }
 else:
     DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": os.get_env("DEFAULT_DATABASE_NAME"),
+        "USER": os.get_env("DEFAULT_DATABASE_USER"),
+        "PASSWORD": os.get_env("DEFAULT_DATABASE_PASSWORD"),
+        "HOST": os.get_env("DEFAULT_DATABASE_HOST"),
+        "PORT": os.get_env("DEFAULT_DATABASE_PORT"),
+    }
+}
+    
 # CELERY CONFIG
 
 # CELERY_BROKER_URL = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
@@ -54,12 +64,26 @@ from datetime import timedelta
 CELERY_BEAT_SCHEDULE = {
     # 'trigger-send-kbs-every-minute': {
     #     'task': 'search.tasks.trigger_send_kbs',
-    #     'schedule': crontab(minute='*'),  # هر دقیقه
+    #     'schedule': timedelta(seconds=45),
+    #     'options': {'queue': 'queue_one'},
+    #     # 'schedule': crontab(minute='*'),  # هر دقیقه
     # },
-    'trigger_process_unprocessed_batch-every-35-seconds': {
-        'task': 'search.tasks.trigger_process_unprocessed_batch',
-        'schedule': timedelta(seconds=35),
-    }
+
+    # 'trigger_process_unprocessed_batch-every-35-seconds': {
+    #     'task': 'search.tasks.trigger_process_unprocessed_batch',
+    #     'schedule': timedelta(seconds=35),
+    # },
+
+    'check_is_news_from_ai': {
+        'task': 'search.tasks.check_is_news_from_ai',
+        'schedule': timedelta(seconds=45),
+        'options': {'queue': 'queue_two'},
+    },
+}
+
+CELERY_TASK_ROUTES = {
+    # 'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
+    'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
 }
 
 
