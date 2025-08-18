@@ -1,0 +1,5 @@
+{
+    "platform": "python",
+    "app": "celery-worker",
+    "command": "celery -A config.celery worker --loglevel=info --queues=queue_two"
+}
