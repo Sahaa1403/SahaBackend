@@ -647,6 +647,29 @@ class Search(APIView):
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            from requests.adapters import HTTPAdapter
+            from urllib3.util.retry import Retry
+
+            def requests_retry_session(
+                retries=3,
+                backoff_factor=1,
+                status_forcelist=(500, 502, 503, 504),
+                session=None,
+            ):
+                session = session or requests.Session()
+                retry = Retry(
+                    total=retries,
+                    read=retries,
+                    connect=retries,
+                    backoff_factor=backoff_factor,
+                    status_forcelist=status_forcelist,
+                    allowed_methods=frozenset(["GET", "POST"]),  # خیلی مهم: POST هم retry بشه
+                    raise_on_status=False
+                )
+                adapter = HTTPAdapter(max_retries=retry)
+                session.mount("http://", adapter)
+                session.mount("https://", adapter)
+                return session
             # External AI API request
             url = 'http://62.60.198.225:5682/text/check_news'
             headers = {
@@ -655,7 +678,9 @@ class Search(APIView):
             }
             payload = {'input_news': search_text}
 
-            response = requests.post(url, params=payload, headers=headers)
+            session = requests_retry_session()
+
+            response = session.post(url, params=payload, headers=headers, timeout=(3, 30))
 
             if response.status_code == 200:
                 ai_result = response.json()
