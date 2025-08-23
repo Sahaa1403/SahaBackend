@@ -624,9 +624,18 @@ class SearchByID(APIView):
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
         search = SearchData.objects.get(id=self.kwargs["id"])
-        if search:
-            return Response(SearchSerializer(search).data, status=status.HTTP_200_OK)
-        return Response({'error': 'Search data not found'}, status=status.HTTP_404_NOT_FOUND)
+        if not search:
+            return Response({'error': 'Search data not found'}, status=status.HTTP_404_NOT_FOUND)
+        simmilar_news_ids = search.ai_answer.get("ai_result", {}).get("simmilar_news") or []
+        simmilar_news = []
+        if simmilar_news_ids:
+            simmilar_news = KnowledgeBase.objects.filter(id__in=simmilar_news_ids)
+
+        return Response({
+            "search": SearchSerializer(search).data,
+            "simmilar_news": KnowledgeBaseSerializer(simmilar_news, many=True).data
+        }, status=status.HTTP_200_OK)
+        
 
 
 
