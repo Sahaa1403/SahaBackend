@@ -461,9 +461,14 @@ class KnowledgeBaseFilter(django_filters.FilterSet):
     social_media__isnull = django_filters.BooleanFilter(field_name='social_media', lookup_expr='isnull')
     source__isnull = django_filters.BooleanFilter(field_name='source', lookup_expr='isnull')
 
+        # فیلتر بین دو تاریخ
+    date_time_pub__gte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='gte')
+    date_time_pub__lte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='lte')
+
+    is_news = django_filters.BooleanFilter(field_name="is_news")
     class Meta:
         model = KnowledgeBase
-        fields = ['category', 'source', 'social_media', 'created_at', 'label_name']
+        fields = ['category', 'source', 'social_media', 'created_at', 'label_name', 'date_time_pub', 'is_news']
 
     def filter_by_label_name(self, queryset, name, value):
         if value == 'برچسب دلخواه':
