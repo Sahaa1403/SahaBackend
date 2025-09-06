@@ -47,7 +47,7 @@ import openpyxl
 from io import BytesIO
 import requests
 from rest_framework.parsers import MultiPartParser
-from .models import SocialMedia, Label
+from .models import KnowledgeBaseProcessStatus, SocialMedia, Label
 from django.shortcuts import get_object_or_404
 from uuid import uuid4
 logger = logging.getLogger(__name__)
@@ -258,14 +258,44 @@ class SourceViewSet(GenericAPIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
+class KnowledgeBaseFilter(django_filters.FilterSet):
+    label_name = django_filters.CharFilter(method='filter_by_label_name')
+    social_media__isnull = django_filters.BooleanFilter(field_name='social_media', lookup_expr='isnull')
+    source__isnull = django_filters.BooleanFilter(field_name='source', lookup_expr='isnull')
 
-class SourceItemViewSet(APIView):
-    serializer_class = SourceSerializer
+        # فیلتر بین دو تاریخ
+    date_time_pub__gte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='gte')
+    date_time_pub__lte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='lte')
+
+    is_news = django_filters.BooleanFilter(field_name="is_news")
+    class Meta:
+        model = KnowledgeBase
+        fields = ['category', 'source', 'social_media', 'created_at', 'date_time_pub', 'is_news']
+
+class SourceItemViewSet(GenericAPIView):
+    queryset = Source.objects.all()
     permission_classes = [AllowAny]
+    serializer_class = SourceSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['title', 'body']
+    ordering_fields = ['id', 'created_at']
+    filterset_class = KnowledgeBaseFilter  # استفاده از فیلتر سفارشی
+    def get_queryset(self):
+        # کوئری‌ست پایه برای Source (برای اطمینان از وجود Source)
+        return self.queryset
+    def get_knowledge_base_queryset(self):
+        # کوئری‌ست برای KnowledgeBase‌های مرتبط با Source
+        source_id = self.kwargs.get("id")
+        return KnowledgeBase.objects.filter(source_id=source_id)
     def get(self, *args, **kwargs):
         try:
-            source = Source.objects.get(id=self.kwargs["id"])
-            serializer = SourceWithKBSerializer(source,context={'request': self.request})
+            source = self.get_queryset().get(id=self.kwargs["id"])
+            knowledge_base_queryset = self.filter_queryset(self.get_knowledge_base_queryset())
+            serializer = SourceWithKBSerializer(
+                source, context={'request': self.request,
+                'filtered_knowledge_bases': knowledge_base_queryset
+                })
+
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response("Error - {}".format(e), status=status.HTTP_400_BAD_REQUEST)
