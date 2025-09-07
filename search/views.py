@@ -551,7 +551,7 @@ class KnowledgeBaseViewSet(APIView):
         if serializer.is_valid():
             item = serializer.save()
 
-            url = 'http://62.60.198.225:5682/text/kb/add_news'
+            url = 'http://89.42.199.251:5682/text/kb/add_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
@@ -594,7 +594,7 @@ class KnowledgeBaseItemViewSet(APIView):
             if serializer.is_valid():
                 item = serializer.save()
 
-                url = 'http://62.60.198.225:5682/text/kb/update_news'
+                url = 'http://89.42.199.251:5682/text/kb/update_news'
                 headers = {
                     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                     'Content-Type': 'application/json',
@@ -625,17 +625,7 @@ class KnowledgeBaseItemViewSet(APIView):
     def delete(self, *args, **kwargs):
         try:
             item = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            if item:
-                url = 'http://62.60.198.225:5682/text/kb/remove_news'
-                headers = {
-                    'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                    'Content-Type': 'application/json',
-                }
-                payload = {
-                    'category': item.category,
-                    'id': str(item.id),
-                }
-                response = requests.delete(url, params=payload, headers=headers)
+            url = 'http://89.42.199.251:5682/text/kb/remove_news'
 
                 if response.status_code == 200:
                     data = response.json()
@@ -715,7 +705,7 @@ class Search(APIView):
                 session.mount("https://", adapter)
                 return session
             # External AI API request
-            url = 'http://62.60.198.225:5682/text/check_news'
+            url = 'http://89.42.199.251:5682/text/check_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
@@ -853,7 +843,7 @@ class UploadSearch(APIView):
                             done_item += 1
 
                         # External AI API request
-                        url = 'http://62.60.198.225:5682/text/check_news'
+                        url = 'http://89.42.199.251:5682/text/check_news'
                         headers = {
                             'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                             'Content-Type': 'application/json',
