@@ -34,25 +34,34 @@ if os.getenv("STAGE") == "PRODUCTION":
         }
     }
 else:
+    # DATABASES = {
+    #     "default": {
+    #         "ENGINE": "django.db.backends.sqlite3",
+    #         "NAME": BASE_DIR / "db.sqlite3",
+    #     }
+    # }
     DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": os.get_env("DEFAULT_DATABASE_NAME"),
-        "USER": os.get_env("DEFAULT_DATABASE_USER"),
-        "PASSWORD": os.get_env("DEFAULT_DATABASE_PASSWORD"),
-        "HOST": os.get_env("DEFAULT_DATABASE_HOST"),
-        "PORT": os.get_env("DEFAULT_DATABASE_PORT"),
+        "NAME": "postgres",
+        "USER": "root",
+        "PASSWORD": "7ndATqgoxAUGpJPuwLISMiUO",
+        # "HOST": "lhotse.liara.cloud",
+        "HOST": "185.208.181.142",
+        "PORT": "30645",
+        # "Host": "sahapostgresql",
+        # "PORT": "5432",
     }
 }
     
 # CELERY CONFIG
 
-# CELERY_BROKER_URL = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
-# CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_BROKER_URL = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'
+# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -62,12 +71,12 @@ CELERY_TIMEZONE = 'Asia/Tehran'
 from celery.schedules import crontab
 from datetime import timedelta
 CELERY_BEAT_SCHEDULE = {
-    # 'trigger-send-kbs-every-minute': {
-    #     'task': 'search.tasks.trigger_send_kbs',
-    #     'schedule': timedelta(seconds=45),
-    #     'options': {'queue': 'queue_one'},
-    #     # 'schedule': crontab(minute='*'),  # هر دقیقه
-    # },
+    'trigger-send-kbs-every-minute': {
+        'task': 'search.tasks.trigger_send_kbs',
+        'schedule': timedelta(seconds=45),
+        'options': {'queue': 'queue_one'},
+        # 'schedule': crontab(minute='*'),  # هر دقیقه
+    },
 
     # 'trigger_process_unprocessed_batch-every-35-seconds': {
     #     'task': 'search.tasks.trigger_process_unprocessed_batch',
@@ -82,7 +91,7 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 CELERY_TASK_ROUTES = {
-    # 'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
+    'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
     'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
 }
 

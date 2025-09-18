@@ -6,11 +6,14 @@ import csv
 import tempfile
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from accounts.models.user import User
+from errors.error_enum import ErrorEnum
+from errors.exeptions import BadRequestException
 from search.functions.public_functions import assign_default_labels_to_kbs
 from search.functions.public_functions import create_kb_process_status
 from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
@@ -47,9 +50,11 @@ import openpyxl
 from io import BytesIO
 import requests
 from rest_framework.parsers import MultiPartParser
-from .models import SocialMedia, Label
+from .models import KnowledgeBaseProcessStatus, SocialMedia, Label
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from uuid import uuid4
+
 logger = logging.getLogger(__name__)
 
 
@@ -258,14 +263,44 @@ class SourceViewSet(GenericAPIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
+class KnowledgeBaseFilter(django_filters.FilterSet):
+    label_name = django_filters.CharFilter(method='filter_by_label_name')
+    social_media__isnull = django_filters.BooleanFilter(field_name='social_media', lookup_expr='isnull')
+    source__isnull = django_filters.BooleanFilter(field_name='source', lookup_expr='isnull')
 
-class SourceItemViewSet(APIView):
-    serializer_class = SourceSerializer
+        # فیلتر بین دو تاریخ
+    date_time_pub__gte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='gte')
+    date_time_pub__lte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='lte')
+
+    is_news = django_filters.BooleanFilter(field_name="is_news")
+    class Meta:
+        model = KnowledgeBase
+        fields = ['category', 'source', 'social_media', 'created_at', 'date_time_pub', 'is_news']
+
+class SourceItemViewSet(GenericAPIView):
+    queryset = Source.objects.all()
     permission_classes = [AllowAny]
+    serializer_class = SourceSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['title', 'body']
+    ordering_fields = ['id', 'created_at']
+    filterset_class = KnowledgeBaseFilter  # استفاده از فیلتر سفارشی
+    def get_queryset(self):
+        # کوئری‌ست پایه برای Source (برای اطمینان از وجود Source)
+        return self.queryset
+    def get_knowledge_base_queryset(self):
+        # کوئری‌ست برای KnowledgeBase‌های مرتبط با Source
+        source_id = self.kwargs.get("id")
+        return KnowledgeBase.objects.filter(source_id=source_id)
     def get(self, *args, **kwargs):
         try:
-            source = Source.objects.get(id=self.kwargs["id"])
-            serializer = SourceWithKBSerializer(source,context={'request': self.request})
+            source = self.get_queryset().get(id=self.kwargs["id"])
+            knowledge_base_queryset = self.filter_queryset(self.get_knowledge_base_queryset())
+            serializer = SourceWithKBSerializer(
+                source, context={'request': self.request,
+                'filtered_knowledge_bases': knowledge_base_queryset
+                })
+
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response("Error - {}".format(e), status=status.HTTP_400_BAD_REQUEST)
@@ -461,9 +496,14 @@ class KnowledgeBaseFilter(django_filters.FilterSet):
     social_media__isnull = django_filters.BooleanFilter(field_name='social_media', lookup_expr='isnull')
     source__isnull = django_filters.BooleanFilter(field_name='source', lookup_expr='isnull')
 
+        # فیلتر بین دو تاریخ
+    date_time_pub__gte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='gte')
+    date_time_pub__lte = django_filters.DateTimeFilter(field_name="date_time_pub", lookup_expr='lte')
+
+    is_news = django_filters.BooleanFilter(field_name="is_news")
     class Meta:
         model = KnowledgeBase
-        fields = ['category', 'source', 'social_media', 'created_at', 'label_name']
+        fields = ['category', 'source', 'social_media', 'created_at', 'label_name', 'date_time_pub', 'is_news']
 
     def filter_by_label_name(self, queryset, name, value):
         if value == 'برچسب دلخواه':
@@ -492,6 +532,7 @@ class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     
 
     def get(self, *args, **kwargs):
+        print("MMMMMMMMMMMMMMMMM")
         kb = self.filter_queryset(KnowledgeBase.objects.all())
         page = self.paginate_queryset(kb)
         if page is not None:
@@ -516,7 +557,7 @@ class KnowledgeBaseViewSet(APIView):
         if serializer.is_valid():
             item = serializer.save()
 
-            url = 'http://62.60.198.225:5682/text/kb/add_news'
+            url = 'http://89.42.199.251:5682/text/kb/add_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
@@ -559,7 +600,7 @@ class KnowledgeBaseItemViewSet(APIView):
             if serializer.is_valid():
                 item = serializer.save()
 
-                url = 'http://62.60.198.225:5682/text/kb/update_news'
+                url = 'http://89.42.199.251:5682/text/kb/update_news'
                 headers = {
                     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                     'Content-Type': 'application/json',
@@ -588,32 +629,36 @@ class KnowledgeBaseItemViewSet(APIView):
             return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, *args, **kwargs):
+        error_messages = {}
+        error_types = []
         try:
             item = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            if item:
-                url = 'http://62.60.198.225:5682/text/kb/remove_news'
-                headers = {
-                    'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                    'Content-Type': 'application/json',
-                }
-                payload = {
-                    'category': item.category,
-                    'id': str(item.id),
-                }
-                response = requests.delete(url, params=payload, headers=headers)
+            if not item.processed:
+                error_messages["processed"] = _("news is not processed.")
+                error_types.append(ErrorEnum.KnowledgeBaseError.ITEM_NOT_PROCESSED)
+                raise BadRequestException(message=error_messages, error_type=error_types)
+            url = 'http://89.42.199.251:5682/text/kb/remove_news'
+            headers = {
+                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                'Content-Type': 'application/json',
+            }
+            payload = {
+                'category': item.category,
+                'id': str(item.id),
+            }
+            response = requests.delete(url, params=payload, headers=headers)
 
-                if response.status_code == 200:
-                    data = response.json()
-                    print(data)
-                    item.delete()
-                    return Response(status=status.HTTP_204_NO_CONTENT)
-                else:
-                    print("Status Code:", response.status_code)
-                    print("Response Text:", response.text)
-                    print("Request Payload:", payload)
-                    print("Request Headers:", headers)
-                    return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
-            return Response("KnowledgeBase deleted.", status=status.HTTP_200_OK)
+            if response.status_code == 200:
+                data = response.json()
+                print(data)
+                item.delete()
+                return Response("KnowledgeBase deleted.", status=status.HTTP_200_OK)
+            else:
+                print("Status Code:", response.status_code)
+                print("Response Text:", response.text)
+                print("Request Payload:", payload)
+                print("Request Headers:", headers)
+                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
         except:
             return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
@@ -624,18 +669,40 @@ class SearchByID(APIView):
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
         search = SearchData.objects.get(id=self.kwargs["id"])
-        if search:
-            return Response(SearchSerializer(search).data, status=status.HTTP_200_OK)
-        return Response({'error': 'Search data not found'}, status=status.HTTP_404_NOT_FOUND)
+        if not search:
+            return Response({'error': 'Search data not found'}, status=status.HTTP_404_NOT_FOUND)
+        simmilar_news_ids = search.ai_answer.get("ai_result", {}).get("simmilar_news") or []
+        simmilar_news = []
+        if simmilar_news_ids:
+            simmilar_news = KnowledgeBase.objects.filter(id__in=simmilar_news_ids)
 
+        return Response({
+            "search": SearchSerializer(search).data,
+            "simmilar_news": KnowledgeBaseSerializer(simmilar_news, many=True).data
+        }, status=status.HTTP_200_OK)
 
-
+# import logging
+# import random
+# import unicodedata
+# import requests
+# from requests.adapters import HTTPAdapter
+# from urllib3.util.retry import Retry
+# from django.db import connection
+# import sys
+# handler = logging.StreamHandler(sys.stdout)
+# formatter = logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
+# logger.setLevel(logging.DEBUG)
+# logger = logging.getLogger(__name__)
 
 class Search(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         try:
-            search_text = request.data.get('search')
+
+            search_text = self.request.data.get('search')
             if not search_text:
                 return Response({'error': 'Search field is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -644,58 +711,71 @@ class Search(APIView):
             serializer = SearchSerializer(data=search_data)
             if serializer.is_valid():
                 search_item = serializer.save()
+                logger.debug(f"[SEARCH] Search item saved with id={search_item.id}")
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             # External AI API request
-            url = 'http://62.60.198.225:5682/text/check_news'
+            url = 'http://89.42.199.251:5682/text/check_news'
+            # headers = {
+            #     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+            #     'Content-Type': 'application/json'
+            # }
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Origin': 'http://89.42.199.251:5682',
+                'Referer': 'http://89.42.199.251:5682/docs',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
             }
+
             payload = {'input_news': search_text}
 
-            response = requests.post(url, params=payload, headers=headers)
+            logger.info(f"[AI_REQUEST] Sending request to {url} | payload={payload}")
+            start = time.time()
+
+            response = requests.post(url, params=payload, headers=headers, timeout=(3, 60), proxies={"http": None, "https": None})
+
+            elapsed = time.time() - start
+            logger.info(f"[AI_REQUEST] Got response {response.status_code} in {elapsed:.2f}s")
 
             if response.status_code == 200:
                 ai_result = response.json()
-
+                print("cccccccccccccccccccccc")
                 try:
                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
                     fact_data = KnowledgeBaseSerializer(fact, context={'request': request}).data
-
-                    if_foreign = True
-                    for char in fact_data["source"]["title"]:
-                        if char.isalpha():
-                            try:
-                                name = unicodedata.name(char)
-                                if 'LATIN' not in name:
-                                    if_foreign = False
-                                    break  # No need to continue if we already know
-                            except ValueError:
-                                if_foreign = False
-                                break
-                    if if_foreign:
-                        foreign_social = 80
-                        foreign_sites = 95
-                        internal_social = 20
-                        internal_sites = 35
-                    else:
-                        foreign_social = 20
-                        foreign_sites = 35
-                        internal_social = 80
-                        internal_sites = 95
-
-                    def update_with_tolerance(value, tolerance=5):
-                        change = random.randint(0, tolerance)
-                        return value + change if random.choice([True, False]) else value - change
-
-                    radar_chart = {
-                        "foreign_social": update_with_tolerance(foreign_social),
-                        "foreign_sites": update_with_tolerance(foreign_sites),
-                        "internal_social": update_with_tolerance(internal_social),
-                        "internal_sites": update_with_tolerance(internal_sites)
+                    print("fffffffffff", ai_result['simmilar_news'])
+                    similar_kbs = KnowledgeBase.objects.filter(id__in=ai_result['simmilar_news']).select_related('source', 'social_media')
+                    # شمارش
+                    counts = {
+                        "foreign_social": 0,
+                        "foreign_sites": 0,
+                        "internal_social": 0,
+                        "internal_sites": 0
                     }
+
+                    for kb in similar_kbs:
+                        # شبکه اجتماعی
+                        if kb.social_media:
+                            if getattr(kb.social_media, "origin_type", "") == "foreign":
+                                counts["foreign_social"] += 1
+                            elif getattr(kb.social_media, "origin_type", "") == "domestic":
+                                counts["internal_social"] += 1
+
+                        # سایت خبرگذاری
+                        if kb.source:
+                            if getattr(kb.source, "origin_type", "") == "foreign":
+                                counts["foreign_sites"] += 1
+                            elif getattr(kb.source, "origin_type", "") == "domestic":
+                                counts["internal_sites"] += 1
+                    
+                    # محاسبه درصد
+                    total = len(similar_kbs) or 1
+                    radar_chart = {k: round(v / total * 100, 2) for k, v in counts.items()}
 
                     lbls = []
                     for lbl in fact_data["labels"]:
@@ -741,8 +821,149 @@ class Search(APIView):
                 return Response({'error': 'Failed to fetch AI response.'}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            logger.exception("Unexpected error occurred during search")
-            return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print("EXCEPTION >>>", e)
+            return Response({
+                'error': 'Something went wrong, please try again.{}'.format(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# class Search(APIView):
+#     permission_classes = [AllowAny]
+#     def post(self, request, *args, **kwargs):
+#         try:
+#             search_text = request.data.get('search')
+#             if not search_text:
+#                 return Response({'error': 'Search field is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Prepare search data
+#             search_data = {'user': self.request.user.id if self.request.user.is_authenticated else None, 'text': search_text}
+#             serializer = SearchSerializer(data=search_data)
+#             if serializer.is_valid():
+#                 search_item = serializer.save()
+#             else:
+#                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#             from requests.adapters import HTTPAdapter
+#             from urllib3.util.retry import Retry
+
+#             def requests_retry_session(
+#                 retries=3,
+#                 backoff_factor=1,
+#                 status_forcelist=(500, 502, 503, 504),
+#                 session=None,
+#             ):
+#                 session = session or requests.Session()
+#                 retry = Retry(
+#                     total=retries,
+#                     read=retries,
+#                     connect=retries,
+#                     backoff_factor=backoff_factor,
+#                     status_forcelist=status_forcelist,
+#                     allowed_methods=frozenset(["GET", "POST"]),  # خیلی مهم: POST هم retry بشه
+#                     raise_on_status=False
+#                 )
+#                 adapter = HTTPAdapter(max_retries=retry)
+#                 session.mount("http://", adapter)
+#                 session.mount("https://", adapter)
+#                 return session
+#             # External AI API request
+#             url = 'http://89.42.199.251:5682/text/check_news'
+#             headers = {
+#                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+#                 'Content-Type': 'application/json',
+#             }
+#             payload = {'input_news': search_text}
+
+#             session = requests_retry_session()
+
+#             response = session.post(url, params=payload, headers=headers, timeout=(3, 90))
+#             print("response", response.status_code, response.text)
+#             if response.status_code == 200:
+#                 ai_result = response.json()
+
+#                 try:
+#                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
+#                     fact_data = KnowledgeBaseSerializer(fact, context={'request': request}).data
+
+#                     if_foreign = True
+#                     for char in fact_data["source"]["title"]:
+#                         if char.isalpha():
+#                             try:
+#                                 name = unicodedata.name(char)
+#                                 if 'LATIN' not in name:
+#                                     if_foreign = False
+#                                     break  # No need to continue if we already know
+#                             except ValueError:
+#                                 if_foreign = False
+#                                 break
+#                     if if_foreign:
+#                         foreign_social = 80
+#                         foreign_sites = 95
+#                         internal_social = 20
+#                         internal_sites = 35
+#                     else:
+#                         foreign_social = 20
+#                         foreign_sites = 35
+#                         internal_social = 80
+#                         internal_sites = 95
+
+#                     def update_with_tolerance(value, tolerance=5):
+#                         change = random.randint(0, tolerance)
+#                         return value + change if random.choice([True, False]) else value - change
+
+#                     radar_chart = {
+#                         "foreign_social": update_with_tolerance(foreign_social),
+#                         "foreign_sites": update_with_tolerance(foreign_sites),
+#                         "internal_social": update_with_tolerance(internal_social),
+#                         "internal_sites": update_with_tolerance(internal_sites)
+#                     }
+
+#                     lbls = []
+#                     for lbl in fact_data["labels"]:
+#                         lbl_item = {
+#                             "name": lbl["label_name"],
+#                             "count": lbl["count"],
+#                             "percentage": round((lbl["count"] / len(fact_data["labels"])) * 100, 2)
+#                         }
+#                         lbls.append(lbl_item)
+
+#                     chart_data = {
+#                         "pie_chart": lbls,
+#                         "radar_chart": radar_chart
+#                     }
+
+#                 except:
+#                     fact_data = None
+
+#                     chart_data = {
+#                         "pie_chart": None,
+#                         "radar_chart": None
+#                     }
+
+
+
+#                 combined_result = {
+#                     'id': str(search_item.id),
+#                     'search_text': search_text,
+#                     'ai_result': ai_result,
+#                     'fact_data': fact_data,
+#                     'chart_data': chart_data
+#                 }
+#                 if ai_result['result'] == "real":
+#                     search_item.result = "real"
+#                 else:
+#                     search_item.result = "fake"
+#                 search_item.processed = True
+#                 search_item.ai_answer = combined_result
+#                 search_item.save()
+#                 return Response(combined_result, status=status.HTTP_200_OK)
+#             else:
+#                 logger.warning(f"AI service failed | Status: {response.status_code} | Response: {response.text}")
+#                 return Response({'error': 'Failed to fetch AI response.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         except Exception as e:
+#             logger.exception("Unexpected error occurred during search")
+#             return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get(self, *args, **kwargs):
         try:
@@ -784,7 +1005,7 @@ class UploadSearch(APIView):
                             done_item += 1
 
                         # External AI API request
-                        url = 'http://62.60.198.225:5682/text/check_news'
+                        url = 'http://89.42.199.251:5682/text/check_news'
                         headers = {
                             'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                             'Content-Type': 'application/json',
@@ -834,66 +1055,302 @@ class UploadSearch(APIView):
         return Response(socialmedia_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
+logger = logging.getLogger(__name__)
 class UploadSourceFile(APIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        source_data = self.request.data
-        source_serializer = CreateSourceSerializer(data=source_data)
-        if source_serializer.is_valid():
-            source_item = source_serializer.save()
-            done_item = 0
-            done_item_in_server = 0
+        try:
+            # --- اعتبارسنجی منبع
+            source_data = request.data
+            source_title = source_data.get("title")
+            if not source_title:
+                return Response(
+                    {"error": "Title is required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            source_item, created = Source.objects.get_or_create(
+                title=source_title,
+
+                defaults={
+                    "description": source_data.get("description"),
+                    "category": source_data.get("category"),
+                    "photo": source_data.get("photo"),
+                    "file": source_data.get("file"),
+                    "source_uri": source_data.get("source_uri"),
+                    "source_data_type": source_data.get("source_data_type"),
+                }
+            )
+         
+
+            # --- گرفتن فایل
+            json_file = request.FILES.get("file")
+            if not json_file:
+                return Response(
+                    {"error": "No JSON file provided."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             try:
-                json_file = self.request.FILES.get('file')
-                print(json_file.read())
-                json_file.seek(0)
-                try:
-                    file_data = json.load(json_file)
-                    for obj in file_data:
-                        search_text = obj["body"]
+                file_data = json.load(json_file)
+                if not isinstance(file_data, list):
+                    return Response(
+                        {"error": "JSON file must contain a list of objects."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except json.JSONDecodeError as e:
+                return Response(
+                    {"error": f"Invalid JSON file: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-                        # Prepare search data
-                        kb_data = {
-                            'user': self.request.user.id if self.request.user.is_authenticated else None,
-                            'title': search_text,
-                            'body': search_text,
-                            'source': source_item.id,
-                            'category': "real"
-                        }
-                        serializer = AddKnowledgeBaseSerializer(data=kb_data)
-                        if serializer.is_valid():
-                            item = serializer.save()
-                            done_item += 1
-                            url = 'http://62.60.198.225:5682/text/kb/add_news'
-                            headers = {
-                                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                                'Content-Type': 'application/json',
-                            }
-                            payload = {
-                                'category': item.category,
-                                'id': str(item.id),
-                                'body': item.body,
-                            }
-                            response = requests.post(url, params=payload, headers=headers)
-                            if response.status_code == 200:
-                                data = response.json()
-                                done_item_in_server += 1
+            # --- پردازش آبجکت‌ها
+            created_items = []
+            failed_items = []
+            for idx, obj in enumerate(file_data, start=1):
+                uri = obj.get("uri")
+                kb_data = {
+                    "title": obj.get("title"),
+                    "body": obj.get("body"),
+                    "url": obj.get("url"),
+                    "source": source_item.id,
+                    "category": "real",
+                    "date_time_pub": obj.get("date_time_pub"),
+                    "image": obj.get("image"),
+                    "uri": uri,
+                    "lang": obj.get("lang"),
+                    "is_duplicate": obj.get("isDuplicate"),
+                    "data_type": obj.get("dataType"),
+                    "sim": obj.get("sim"),
+                    "sentiment": obj.get("sentiment"),
+                    "wgt": obj.get("wgt"),
+                    "relevance": obj.get("relevance"),
+                    "authors": obj.get("authors"),
+                }
+                if uri and KnowledgeBase.objects.filter(uri=uri).exists():
+                    continue 
+                serializer = AddKnowledgeBaseSerializer(data=kb_data)
+                if serializer.is_valid():
+                    created_items.append(serializer.save().id)
+                else:
+                    failed_items.append({"index": idx, "errors": serializer.errors})
 
-                    final_data = {
-                        "source": source_serializer.data,
-                        "backend_kb_added": done_item,
-                        "AI_kb_added": done_item_in_server
-                    }
-                    return Response(final_data, status=status.HTTP_200_OK)
+            final_data = {
+                "source": {
+                    "id": source_item.id,
+                    "title": source_item.title,
+                    "created": created,  # True = سورس جدید ساخته شده، False = قبلاً وجود داشته
+                },
+                "created_count": len(created_items),
+                "created_items": created_items,                                                       
+                "failed_count": len(failed_items),
+                "failed_items": failed_items,  # برای دیباگ کاربر
+            }
 
-                except json.JSONDecodeError as e:
-                    return Response({"error": "Invalid JSON file - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(final_data, status=status.HTTP_201_CREATED)
 
-            except Exception as e:
-                logger.exception("Unexpected error occurred during search")
-                return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.exception("Unexpected error occurred during upload")
+            return Response(
+                {"error": "Something went wrong on the server.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
-        return Response(source_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+class ImportKnowledgeBaseExcelView(APIView):
+    parser_classes = [MultiPartParser]
+    def clean_text(self, text: str) -> str:
+        """حذف بک‌اسلش‌های اضافه و quote اضافی از متن"""
+        if not text:
+            return ""
+        text = text.replace('\\"', '"').strip()
+        if text.startswith('"') and text.endswith('"'):
+            text = text[1:-1].strip()
+        return text
+    
+    def post(self, request):
+        excel_file = request.FILES.get("file")
+        if not excel_file:
+            return Response({"error": "Excel file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            wb = openpyxl.load_workbook(filename=excel_file, read_only=True)
+            ws = wb.active
+            rows = list(ws.iter_rows(values_only=True))
+        except Exception as e:
+            return Response({"error": f"Failed to read Excel file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not rows or len(rows) < 2:
+            return Response({"error": "Excel file is empty or has no data rows."}, status=status.HTTP_400_BAD_REQUEST)
+
+        headers = [str(h).strip() if h else "" for h in rows[0]]
+        data_rows = rows[1:]
+
+        # پیدا کردن ایندکس فیلدها
+        def get_idx(field_name):
+            return headers.index(field_name) if field_name in headers else None
+
+        idx_map = {
+            "title": get_idx("title"),
+            "body": get_idx("body"),
+            "url": get_idx("url"),
+            "date_time_pub": get_idx("date_time_pub"),
+            "source_uri": get_idx("source_uri"),
+            "source_title": get_idx("source_title"),
+            "uri": get_idx("uri"),
+            "category": get_idx("category"),
+            "is_news": get_idx("is_news"),
+            "sim": get_idx("sim"),
+            "sentiment": get_idx("sentiment"),
+            "wgt": get_idx("wgt"),
+            "relevance": get_idx("relevance"),
+            "authors": get_idx("authors"),
+            "image": get_idx("image"),
+            "lang": get_idx("lang"),
+            "is_duplicate": get_idx("is_duplicate"),
+            "data_type": get_idx("data_type"),
+        }
+
+        kb_objects = []
+        created_count = 0
+        skipped_count = 0
+
+        with transaction.atomic():
+            for row in data_rows:
+                # فیلدهای اجباری
+                title = row[idx_map["title"]] if idx_map["title"] is not None else None
+                body = row[idx_map["body"]] if idx_map["body"] is not None else None
+                
+                title = self.clean_text(title)
+                body = self.clean_text(body)
+
+                if not title or not body:
+                    skipped_count += 1
+                    continue  # اگر title یا body موجود نباشه، رد کن
+
+                # بررسی source
+                source_obj = None
+                source_uri = row[idx_map["source_uri"]] if idx_map["source_uri"] is not None else None
+                source_title = row[idx_map["source_title"]] if idx_map["source_title"] is not None else None
+
+                # اگر source_uri موجود باشه، اول روی اون چک می‌کنیم
+                if source_uri:
+                    source_obj = Source.objects.filter(source_uri=source_uri).first()
+                    # اگه پیدا نشد و title هم هست، بسازیم
+                    if not source_obj and source_title:
+                        source_obj = Source.objects.create(title=source_title.strip(), source_uri=source_uri.strip())
+                # اگر نه uri باشه ولی title باشه، می‌تونیم فقط title رو بسازیم یا اسکیپ کنیم
+                elif source_title:
+                    source_obj = Source.objects.filter(title__iexact=source_title.strip()).first()
+                    if not source_obj:
+                        source_obj = Source.objects.create(title=source_title.strip())
+
+                # اگر نه uri و نه title بود، اسکیپ می‌کنیم این رکورد
+                if not source_obj:
+                    # می‌تونیم log هم کنیم که رکورد اسکیپ شد
+                    continue
+
+                # بررسی uri خبر برای جلوگیری از رکورد تکراری
+                news_uri = row[idx_map["uri"]] if idx_map["uri"] is not None else None
+                if news_uri and KnowledgeBase.objects.filter(uri=news_uri).exists():
+                    skipped_count += 1
+                    continue
+
+                kb_data = {
+                    "title": title,
+                    "body": body,
+                    "source": source_obj,
+                    "url": row[idx_map["url"]] if idx_map["url"] is not None else None,
+                    "date_time_pub": row[idx_map["date_time_pub"]] if idx_map["date_time_pub"] is not None else None,
+                    "category": row[idx_map["category"]] if idx_map["category"] is not None else None,
+                    "is_news": row[idx_map["is_news"]] if idx_map["is_news"] is not None else None,
+                    "sim": row[idx_map["sim"]] if idx_map["sim"] is not None else None,
+                    "sentiment": row[idx_map["sentiment"]] if idx_map["sentiment"] is not None else None,
+                    "wgt": row[idx_map["wgt"]] if idx_map["wgt"] is not None else None,
+                    "relevance": row[idx_map["relevance"]] if idx_map["relevance"] is not None else None,
+                    "authors": row[idx_map["authors"]] if idx_map["authors"] is not None else None,
+                    "image": row[idx_map["image"]] if idx_map["image"] is not None else None,
+                    "lang": row[idx_map["lang"]] if idx_map["lang"] is not None else None,
+                    "is_duplicate": row[idx_map["is_duplicate"]] if idx_map["is_duplicate"] is not None else None,
+                    "data_type": row[idx_map["data_type"]] if idx_map["data_type"] is not None else None,
+                    "uri": news_uri,
+                }
+
+                kb_objects.append(KnowledgeBase(**kb_data))
+                created_count += 1
+
+        # ذخیره bulk
+        if kb_objects:
+            saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
+            assign_default_labels_to_kbs(saved_kbs)
+            create_kb_process_status(saved_kbs)
+
+        return Response({
+            "message": "File imported successfully.",
+            "inserted_count": created_count,
+            "skipped_count": skipped_count
+        }, status=status.HTTP_201_CREATED)
+
+# class UploadSourceFile(APIView):
+#     permission_classes = [AllowAny]
+#     def post(self, request, *args, **kwargs):
+#         source_data = self.request.data
+#         source_serializer = CreateSourceSerializer(data=source_data)
+#         if source_serializer.is_valid():
+#             source_item = source_serializer.save()
+#             print("ssssssssssss", source_item)
+#             done_item = 0
+#             done_item_in_server = 0
+#             try:
+#                 json_file = self.request.FILES.get('file')
+#                 print("jjjjjjjjjjjjjjjjj",json_file.read())
+#                 json_file.seek(0)
+#                 try:
+#                     file_data = json.load(json_file)
+#                     for obj in file_data:
+#                         search_text = obj["body"]
+
+#                         # Prepare search data
+#                         kb_data = {
+#                             'user': self.request.user.id if self.request.user.is_authenticated else None,
+#                             'title': search_text,
+#                             'body': search_text,
+#                             'source': source_item.id,
+#                             'category': "real"
+#                         }
+#                         serializer = AddKnowledgeBaseSerializer(data=kb_data)
+#                         if serializer.is_valid():
+#                             item = serializer.save()
+#                             done_item += 1
+#                             url = 'http://89.42.199.251:5682/text/kb/add_news'
+#                             headers = {
+#                                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+#                                 'Content-Type': 'application/json',
+#                             }
+#                             payload = {
+#                                 'category': item.category,
+#                                 'id': str(item.id),
+#                                 'body': item.body,
+#                             }
+#                             response = requests.post(url, params=payload, headers=headers)
+#                             if response.status_code == 200:
+#                                 data = response.json()
+#                                 done_item_in_server += 1
+
+#                     final_data = {
+#                         "source": source_serializer.data,
+#                         "backend_kb_added": done_item,
+#                         "AI_kb_added": done_item_in_server
+#                     }
+#                     return Response(final_data, status=status.HTTP_200_OK)
+
+#                 except json.JSONDecodeError as e:
+#                     return Response({"error": "Invalid JSON file - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+#             except Exception as e:
+#                 logger.exception("Unexpected error occurred during search")
+#                 return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#         return Response(source_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 

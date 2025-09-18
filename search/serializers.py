@@ -338,6 +338,9 @@ class SourceWithKBSerializer(serializers.ModelSerializer):
         model = Source
         fields = ['id', 'title', 'description', 'category', 'default_label','common_labels', 'common_labels_count', 'labels', 'photo', 'file', 'updated_at', 'created_at', 'knowledge_base_items']
     def get_knowledge_base_items(self, obj):
+        filtered_knowledge_bases = self.context.get('filtered_knowledge_bases')
+        if filtered_knowledge_bases is not None:
+            return KnowledgeBaseSerializer(filtered_knowledge_bases, many=True, context=self.context).data
         kb_items = KnowledgeBase.objects.filter(source=obj)
         return KnowledgeBaseSerializer(kb_items, many=True, context=self.context).data
         #return KnowledgeBaseSerializer(kb_items, many=True).data

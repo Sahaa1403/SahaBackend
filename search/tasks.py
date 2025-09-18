@@ -48,10 +48,10 @@ def send_kb_to_ai(self, kb_id):
                 'id': str(kb.id),
                 'body': truncated_body,
             }
-            response = requests.post('http://62.60.198.225:5682/text/kb/add_news',
+            response = requests.post('http://89.42.199.251:5682/text/kb/add_news',
                                         params=payload,
                                         headers=headers,
-                                        timeout=(3, 30)  # ← 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
+                                        timeout=(3, 60) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
                                         )
             if  response.status_code != 200:
                     status.add_news_check_failed = True
@@ -88,10 +88,10 @@ def send_kb_to_ai(self, kb_id):
 #             'id': str(kb.id),
 #             'body': truncated_body,
 #         }
-#         response = requests.post('http://62.60.198.225:5682/text/kb/add_news',
+#         response = requests.post('http://89.42.199.251:5682/text/kb/add_news',
 #                                     params=payload,
 #                                     headers=headers,
-#                                     timeout=(3, 30)  # ← 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
+#                                     timeout=(3, 60) # ← 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
 #                                     )
 #         if response.status_code == 200:
 #             kb.processed = True
@@ -159,10 +159,10 @@ def process_news_batch(batch_id):
             }
             payload = {'input_news': kb.body}
             response = requests.post(
-                "http://62.60.198.225:5682/text/check_news",
+                "http://89.42.199.251:5682/text/check_news",
                 params=payload,
                 headers=headers,
-                timeout=10
+                timeout=40
             )
             if response.status_code == 200:
                 data = response.json()
@@ -222,7 +222,7 @@ def process_news_batch(batch_id):
 #                 payload = {'input_news': input_text}
 #                 try:
 #                     response = requests.post(
-#                         'http://62.60.198.225:5682/text/is_news',
+#                         'http://89.42.199.251:5682/text/is_news',
 #                         params=payload,
 #                         headers=headers,
 #                         timeout=(3, 45)
@@ -304,10 +304,10 @@ def process_unchecked_news(self, kb_id):
                 payload = {'input_news': input_text}
                 try:
                     response = requests.post(
-                        'http://62.60.198.225:5682/text/is_news',
+                        'http://89.42.199.251:5682/text/is_news',
                         params=payload,
                         headers=headers,
-                        timeout=(3, 50)
+                        timeout=(3, 60)
                     )
                     return response
                 except requests.RequestException as e:
