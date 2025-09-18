@@ -6,11 +6,14 @@ import csv
 import tempfile
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from accounts.models.user import User
+from errors.error_enum import ErrorEnum
+from errors.exeptions import BadRequestException
 from search.functions.public_functions import assign_default_labels_to_kbs
 from search.functions.public_functions import create_kb_process_status
 from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
@@ -49,7 +52,9 @@ import requests
 from rest_framework.parsers import MultiPartParser
 from .models import KnowledgeBaseProcessStatus, SocialMedia, Label
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from uuid import uuid4
+
 logger = logging.getLogger(__name__)
 
 
@@ -527,6 +532,7 @@ class KnowledgeBaseFullAPIViewSet(GenericAPIView):
     
 
     def get(self, *args, **kwargs):
+        print("MMMMMMMMMMMMMMMMM")
         kb = self.filter_queryset(KnowledgeBase.objects.all())
         page = self.paginate_queryset(kb)
         if page is not None:
@@ -623,22 +629,36 @@ class KnowledgeBaseItemViewSet(APIView):
             return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, *args, **kwargs):
+        error_messages = {}
+        error_types = []
         try:
             item = KnowledgeBase.objects.get(id=self.kwargs["id"])
+            if not item.processed:
+                error_messages["processed"] = _("news is not processed.")
+                error_types.append(ErrorEnum.KnowledgeBaseError.ITEM_NOT_PROCESSED)
+                raise BadRequestException(message=error_messages, error_type=error_types)
             url = 'http://89.42.199.251:5682/text/kb/remove_news'
+            headers = {
+                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                'Content-Type': 'application/json',
+            }
+            payload = {
+                'category': item.category,
+                'id': str(item.id),
+            }
+            response = requests.delete(url, params=payload, headers=headers)
 
-                if response.status_code == 200:
-                    data = response.json()
-                    print(data)
-                    item.delete()
-                    return Response(status=status.HTTP_204_NO_CONTENT)
-                else:
-                    print("Status Code:", response.status_code)
-                    print("Response Text:", response.text)
-                    print("Request Payload:", payload)
-                    print("Request Headers:", headers)
-                    return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
-            return Response("KnowledgeBase deleted.", status=status.HTTP_200_OK)
+            if response.status_code == 200:
+                data = response.json()
+                print(data)
+                item.delete()
+                return Response("KnowledgeBase deleted.", status=status.HTTP_200_OK)
+            else:
+                print("Status Code:", response.status_code)
+                print("Response Text:", response.text)
+                print("Request Payload:", payload)
+                print("Request Headers:", headers)
+                return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
         except:
             return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
@@ -660,16 +680,29 @@ class SearchByID(APIView):
             "search": SearchSerializer(search).data,
             "simmilar_news": KnowledgeBaseSerializer(simmilar_news, many=True).data
         }, status=status.HTTP_200_OK)
-        
 
-
-
+# import logging
+# import random
+# import unicodedata
+# import requests
+# from requests.adapters import HTTPAdapter
+# from urllib3.util.retry import Retry
+# from django.db import connection
+# import sys
+# handler = logging.StreamHandler(sys.stdout)
+# formatter = logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s")
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
+# logger.setLevel(logging.DEBUG)
+# logger = logging.getLogger(__name__)
 
 class Search(APIView):
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         try:
-            search_text = request.data.get('search')
+
+            search_text = self.request.data.get('search')
             if not search_text:
                 return Response({'error': 'Search field is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -678,83 +711,71 @@ class Search(APIView):
             serializer = SearchSerializer(data=search_data)
             if serializer.is_valid():
                 search_item = serializer.save()
+                logger.debug(f"[SEARCH] Search item saved with id={search_item.id}")
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            from requests.adapters import HTTPAdapter
-            from urllib3.util.retry import Retry
-
-            def requests_retry_session(
-                retries=3,
-                backoff_factor=1,
-                status_forcelist=(500, 502, 503, 504),
-                session=None,
-            ):
-                session = session or requests.Session()
-                retry = Retry(
-                    total=retries,
-                    read=retries,
-                    connect=retries,
-                    backoff_factor=backoff_factor,
-                    status_forcelist=status_forcelist,
-                    allowed_methods=frozenset(["GET", "POST"]),  # خیلی مهم: POST هم retry بشه
-                    raise_on_status=False
-                )
-                adapter = HTTPAdapter(max_retries=retry)
-                session.mount("http://", adapter)
-                session.mount("https://", adapter)
-                return session
             # External AI API request
             url = 'http://89.42.199.251:5682/text/check_news'
+            # headers = {
+            #     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+            #     'Content-Type': 'application/json'
+            # }
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip, deflate',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Origin': 'http://89.42.199.251:5682',
+                'Referer': 'http://89.42.199.251:5682/docs',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
             }
+
             payload = {'input_news': search_text}
 
-            session = requests_retry_session()
+            logger.info(f"[AI_REQUEST] Sending request to {url} | payload={payload}")
+            start = time.time()
 
-            response = session.post(url, params=payload, headers=headers, timeout=(3, 30))
+            response = requests.post(url, params=payload, headers=headers, timeout=(3, 60), proxies={"http": None, "https": None})
+
+            elapsed = time.time() - start
+            logger.info(f"[AI_REQUEST] Got response {response.status_code} in {elapsed:.2f}s")
 
             if response.status_code == 200:
                 ai_result = response.json()
-
+                print("cccccccccccccccccccccc")
                 try:
                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
                     fact_data = KnowledgeBaseSerializer(fact, context={'request': request}).data
-
-                    if_foreign = True
-                    for char in fact_data["source"]["title"]:
-                        if char.isalpha():
-                            try:
-                                name = unicodedata.name(char)
-                                if 'LATIN' not in name:
-                                    if_foreign = False
-                                    break  # No need to continue if we already know
-                            except ValueError:
-                                if_foreign = False
-                                break
-                    if if_foreign:
-                        foreign_social = 80
-                        foreign_sites = 95
-                        internal_social = 20
-                        internal_sites = 35
-                    else:
-                        foreign_social = 20
-                        foreign_sites = 35
-                        internal_social = 80
-                        internal_sites = 95
-
-                    def update_with_tolerance(value, tolerance=5):
-                        change = random.randint(0, tolerance)
-                        return value + change if random.choice([True, False]) else value - change
-
-                    radar_chart = {
-                        "foreign_social": update_with_tolerance(foreign_social),
-                        "foreign_sites": update_with_tolerance(foreign_sites),
-                        "internal_social": update_with_tolerance(internal_social),
-                        "internal_sites": update_with_tolerance(internal_sites)
+                    print("fffffffffff", ai_result['simmilar_news'])
+                    similar_kbs = KnowledgeBase.objects.filter(id__in=ai_result['simmilar_news']).select_related('source', 'social_media')
+                    # شمارش
+                    counts = {
+                        "foreign_social": 0,
+                        "foreign_sites": 0,
+                        "internal_social": 0,
+                        "internal_sites": 0
                     }
+
+                    for kb in similar_kbs:
+                        # شبکه اجتماعی
+                        if kb.social_media:
+                            if getattr(kb.social_media, "origin_type", "") == "foreign":
+                                counts["foreign_social"] += 1
+                            elif getattr(kb.social_media, "origin_type", "") == "domestic":
+                                counts["internal_social"] += 1
+
+                        # سایت خبرگذاری
+                        if kb.source:
+                            if getattr(kb.source, "origin_type", "") == "foreign":
+                                counts["foreign_sites"] += 1
+                            elif getattr(kb.source, "origin_type", "") == "domestic":
+                                counts["internal_sites"] += 1
+                    
+                    # محاسبه درصد
+                    total = len(similar_kbs) or 1
+                    radar_chart = {k: round(v / total * 100, 2) for k, v in counts.items()}
 
                     lbls = []
                     for lbl in fact_data["labels"]:
@@ -800,8 +821,149 @@ class Search(APIView):
                 return Response({'error': 'Failed to fetch AI response.'}, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            logger.exception("Unexpected error occurred during search")
-            return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print("EXCEPTION >>>", e)
+            return Response({
+                'error': 'Something went wrong, please try again.{}'.format(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# class Search(APIView):
+#     permission_classes = [AllowAny]
+#     def post(self, request, *args, **kwargs):
+#         try:
+#             search_text = request.data.get('search')
+#             if not search_text:
+#                 return Response({'error': 'Search field is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Prepare search data
+#             search_data = {'user': self.request.user.id if self.request.user.is_authenticated else None, 'text': search_text}
+#             serializer = SearchSerializer(data=search_data)
+#             if serializer.is_valid():
+#                 search_item = serializer.save()
+#             else:
+#                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#             from requests.adapters import HTTPAdapter
+#             from urllib3.util.retry import Retry
+
+#             def requests_retry_session(
+#                 retries=3,
+#                 backoff_factor=1,
+#                 status_forcelist=(500, 502, 503, 504),
+#                 session=None,
+#             ):
+#                 session = session or requests.Session()
+#                 retry = Retry(
+#                     total=retries,
+#                     read=retries,
+#                     connect=retries,
+#                     backoff_factor=backoff_factor,
+#                     status_forcelist=status_forcelist,
+#                     allowed_methods=frozenset(["GET", "POST"]),  # خیلی مهم: POST هم retry بشه
+#                     raise_on_status=False
+#                 )
+#                 adapter = HTTPAdapter(max_retries=retry)
+#                 session.mount("http://", adapter)
+#                 session.mount("https://", adapter)
+#                 return session
+#             # External AI API request
+#             url = 'http://89.42.199.251:5682/text/check_news'
+#             headers = {
+#                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+#                 'Content-Type': 'application/json',
+#             }
+#             payload = {'input_news': search_text}
+
+#             session = requests_retry_session()
+
+#             response = session.post(url, params=payload, headers=headers, timeout=(3, 90))
+#             print("response", response.status_code, response.text)
+#             if response.status_code == 200:
+#                 ai_result = response.json()
+
+#                 try:
+#                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
+#                     fact_data = KnowledgeBaseSerializer(fact, context={'request': request}).data
+
+#                     if_foreign = True
+#                     for char in fact_data["source"]["title"]:
+#                         if char.isalpha():
+#                             try:
+#                                 name = unicodedata.name(char)
+#                                 if 'LATIN' not in name:
+#                                     if_foreign = False
+#                                     break  # No need to continue if we already know
+#                             except ValueError:
+#                                 if_foreign = False
+#                                 break
+#                     if if_foreign:
+#                         foreign_social = 80
+#                         foreign_sites = 95
+#                         internal_social = 20
+#                         internal_sites = 35
+#                     else:
+#                         foreign_social = 20
+#                         foreign_sites = 35
+#                         internal_social = 80
+#                         internal_sites = 95
+
+#                     def update_with_tolerance(value, tolerance=5):
+#                         change = random.randint(0, tolerance)
+#                         return value + change if random.choice([True, False]) else value - change
+
+#                     radar_chart = {
+#                         "foreign_social": update_with_tolerance(foreign_social),
+#                         "foreign_sites": update_with_tolerance(foreign_sites),
+#                         "internal_social": update_with_tolerance(internal_social),
+#                         "internal_sites": update_with_tolerance(internal_sites)
+#                     }
+
+#                     lbls = []
+#                     for lbl in fact_data["labels"]:
+#                         lbl_item = {
+#                             "name": lbl["label_name"],
+#                             "count": lbl["count"],
+#                             "percentage": round((lbl["count"] / len(fact_data["labels"])) * 100, 2)
+#                         }
+#                         lbls.append(lbl_item)
+
+#                     chart_data = {
+#                         "pie_chart": lbls,
+#                         "radar_chart": radar_chart
+#                     }
+
+#                 except:
+#                     fact_data = None
+
+#                     chart_data = {
+#                         "pie_chart": None,
+#                         "radar_chart": None
+#                     }
+
+
+
+#                 combined_result = {
+#                     'id': str(search_item.id),
+#                     'search_text': search_text,
+#                     'ai_result': ai_result,
+#                     'fact_data': fact_data,
+#                     'chart_data': chart_data
+#                 }
+#                 if ai_result['result'] == "real":
+#                     search_item.result = "real"
+#                 else:
+#                     search_item.result = "fake"
+#                 search_item.processed = True
+#                 search_item.ai_answer = combined_result
+#                 search_item.save()
+#                 return Response(combined_result, status=status.HTTP_200_OK)
+#             else:
+#                 logger.warning(f"AI service failed | Status: {response.status_code} | Response: {response.text}")
+#                 return Response({'error': 'Failed to fetch AI response.'}, status=status.HTTP_400_BAD_REQUEST)
+
+#         except Exception as e:
+#             logger.exception("Unexpected error occurred during search")
+#             return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get(self, *args, **kwargs):
         try:

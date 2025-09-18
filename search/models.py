@@ -22,7 +22,10 @@ class Label(models.Model):
     def __str__(self):
         return self.name
 
-
+ORIGIN_TYPE_CHOICES = (
+    ("domestic", "داخلی"),
+    ("foreign", "خارجی"),
+)
 class Source(models.Model):
     title = models.CharField(max_length=90000)
     description = models.TextField(max_length=2000,null=True,blank=True)
@@ -37,6 +40,7 @@ class Source(models.Model):
     def get_default_label():
         return Label.objects.get_or_create(name="حقیقت")[0].id
     category = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
+    origin_type = models.CharField(max_length=10, blank=True, null=True, choices=ORIGIN_TYPE_CHOICES)
     default_label = models.ForeignKey(Label, on_delete=models.CASCADE, null=True,blank=True, default=get_default_label)
     photo = models.ImageField(upload_to="source_photo",null=True,blank=True)
     file = models.FileField(upload_to="source_file",null=True,blank=True)
@@ -52,6 +56,7 @@ class Source(models.Model):
 class SocialMedia(models.Model):
     title = models.CharField(max_length=1000)
     description = models.TextField(max_length=2000,null=True,blank=True)
+    origin_type = models.CharField(max_length=10, blank=True, null=True, choices=ORIGIN_TYPE_CHOICES)
     photo = models.ImageField(upload_to="socialmedia_photo",null=True,blank=True)
     file = models.FileField(upload_to="socialmedia_file",null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
