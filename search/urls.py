@@ -1,5 +1,5 @@
 from django.urls import path
-from search.views import AssignDefaultTruthLabelView, CheckNewsContentView, DownloadKnowledgeBaseSourceType, GenerateSourceFilesView, ImportNewsContentDetailView, ImportTestNewsContentExcelView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
+from search.views import AssignDefaultTruthLabelView, CheckNewsContentView, DownloadKnowledgeBaseSourceType, GenerateSourceFilesView, ImportKnowledgeBaseExcelView, ImportNewsContentDetailView, ImportTestNewsContentExcelView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
     SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet, UpdateUnprocessedKBView,\
@@ -22,6 +22,9 @@ urlpatterns = [
     path('kb/knowledgebase/<int:id>/', KnowledgeBaseItemViewSet.as_view(), name="knowledgebase-item"),
     path("upload-search", UploadSearch.as_view(), name="upload-search"),
     path("upload-source", UploadSourceFile.as_view(), name="upload-source"),
+    path("import-knowledgebase-exel", ImportKnowledgeBaseExcelView.as_view(), name="import-knowledgebase-excel"),
+
+
     path("search", Search.as_view(), name="search"),
     path("search/<str:id>/", SearchByID.as_view(),name="search_id"),
     path("media-search", MediaSearch.as_view(), name="media-search"),

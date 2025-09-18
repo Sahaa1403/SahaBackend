@@ -1055,66 +1055,302 @@ class UploadSearch(APIView):
         return Response(socialmedia_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
+logger = logging.getLogger(__name__)
 class UploadSourceFile(APIView):
     permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
-        source_data = self.request.data
-        source_serializer = CreateSourceSerializer(data=source_data)
-        if source_serializer.is_valid():
-            source_item = source_serializer.save()
-            done_item = 0
-            done_item_in_server = 0
+        try:
+            # --- اعتبارسنجی منبع
+            source_data = request.data
+            source_title = source_data.get("title")
+            if not source_title:
+                return Response(
+                    {"error": "Title is required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            source_item, created = Source.objects.get_or_create(
+                title=source_title,
+
+                defaults={
+                    "description": source_data.get("description"),
+                    "category": source_data.get("category"),
+                    "photo": source_data.get("photo"),
+                    "file": source_data.get("file"),
+                    "source_uri": source_data.get("source_uri"),
+                    "source_data_type": source_data.get("source_data_type"),
+                }
+            )
+         
+
+            # --- گرفتن فایل
+            json_file = request.FILES.get("file")
+            if not json_file:
+                return Response(
+                    {"error": "No JSON file provided."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             try:
-                json_file = self.request.FILES.get('file')
-                print(json_file.read())
-                json_file.seek(0)
-                try:
-                    file_data = json.load(json_file)
-                    for obj in file_data:
-                        search_text = obj["body"]
+                file_data = json.load(json_file)
+                if not isinstance(file_data, list):
+                    return Response(
+                        {"error": "JSON file must contain a list of objects."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except json.JSONDecodeError as e:
+                return Response(
+                    {"error": f"Invalid JSON file: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-                        # Prepare search data
-                        kb_data = {
-                            'user': self.request.user.id if self.request.user.is_authenticated else None,
-                            'title': search_text,
-                            'body': search_text,
-                            'source': source_item.id,
-                            'category': "real"
-                        }
-                        serializer = AddKnowledgeBaseSerializer(data=kb_data)
-                        if serializer.is_valid():
-                            item = serializer.save()
-                            done_item += 1
-                            url = 'http://62.60.198.225:5682/text/kb/add_news'
-                            headers = {
-                                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                                'Content-Type': 'application/json',
-                            }
-                            payload = {
-                                'category': item.category,
-                                'id': str(item.id),
-                                'body': item.body,
-                            }
-                            response = requests.post(url, params=payload, headers=headers)
-                            if response.status_code == 200:
-                                data = response.json()
-                                done_item_in_server += 1
+            # --- پردازش آبجکت‌ها
+            created_items = []
+            failed_items = []
+            for idx, obj in enumerate(file_data, start=1):
+                uri = obj.get("uri")
+                kb_data = {
+                    "title": obj.get("title"),
+                    "body": obj.get("body"),
+                    "url": obj.get("url"),
+                    "source": source_item.id,
+                    "category": "real",
+                    "date_time_pub": obj.get("date_time_pub"),
+                    "image": obj.get("image"),
+                    "uri": uri,
+                    "lang": obj.get("lang"),
+                    "is_duplicate": obj.get("isDuplicate"),
+                    "data_type": obj.get("dataType"),
+                    "sim": obj.get("sim"),
+                    "sentiment": obj.get("sentiment"),
+                    "wgt": obj.get("wgt"),
+                    "relevance": obj.get("relevance"),
+                    "authors": obj.get("authors"),
+                }
+                if uri and KnowledgeBase.objects.filter(uri=uri).exists():
+                    continue 
+                serializer = AddKnowledgeBaseSerializer(data=kb_data)
+                if serializer.is_valid():
+                    created_items.append(serializer.save().id)
+                else:
+                    failed_items.append({"index": idx, "errors": serializer.errors})
 
-                    final_data = {
-                        "source": source_serializer.data,
-                        "backend_kb_added": done_item,
-                        "AI_kb_added": done_item_in_server
-                    }
-                    return Response(final_data, status=status.HTTP_200_OK)
+            final_data = {
+                "source": {
+                    "id": source_item.id,
+                    "title": source_item.title,
+                    "created": created,  # True = سورس جدید ساخته شده، False = قبلاً وجود داشته
+                },
+                "created_count": len(created_items),
+                "created_items": created_items,                                                       
+                "failed_count": len(failed_items),
+                "failed_items": failed_items,  # برای دیباگ کاربر
+            }
 
-                except json.JSONDecodeError as e:
-                    return Response({"error": "Invalid JSON file - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(final_data, status=status.HTTP_201_CREATED)
 
-            except Exception as e:
-                logger.exception("Unexpected error occurred during search")
-                return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.exception("Unexpected error occurred during upload")
+            return Response(
+                {"error": "Something went wrong on the server.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
 
-        return Response(source_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+class ImportKnowledgeBaseExcelView(APIView):
+    parser_classes = [MultiPartParser]
+    def clean_text(self, text: str) -> str:
+        """حذف بک‌اسلش‌های اضافه و quote اضافی از متن"""
+        if not text:
+            return ""
+        text = text.replace('\\"', '"').strip()
+        if text.startswith('"') and text.endswith('"'):
+            text = text[1:-1].strip()
+        return text
+    
+    def post(self, request):
+        excel_file = request.FILES.get("file")
+        if not excel_file:
+            return Response({"error": "Excel file is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            wb = openpyxl.load_workbook(filename=excel_file, read_only=True)
+            ws = wb.active
+            rows = list(ws.iter_rows(values_only=True))
+        except Exception as e:
+            return Response({"error": f"Failed to read Excel file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not rows or len(rows) < 2:
+            return Response({"error": "Excel file is empty or has no data rows."}, status=status.HTTP_400_BAD_REQUEST)
+
+        headers = [str(h).strip() if h else "" for h in rows[0]]
+        data_rows = rows[1:]
+
+        # پیدا کردن ایندکس فیلدها
+        def get_idx(field_name):
+            return headers.index(field_name) if field_name in headers else None
+
+        idx_map = {
+            "title": get_idx("title"),
+            "body": get_idx("body"),
+            "url": get_idx("url"),
+            "date_time_pub": get_idx("date_time_pub"),
+            "source_uri": get_idx("source_uri"),
+            "source_title": get_idx("source_title"),
+            "uri": get_idx("uri"),
+            "category": get_idx("category"),
+            "is_news": get_idx("is_news"),
+            "sim": get_idx("sim"),
+            "sentiment": get_idx("sentiment"),
+            "wgt": get_idx("wgt"),
+            "relevance": get_idx("relevance"),
+            "authors": get_idx("authors"),
+            "image": get_idx("image"),
+            "lang": get_idx("lang"),
+            "is_duplicate": get_idx("is_duplicate"),
+            "data_type": get_idx("data_type"),
+        }
+
+        kb_objects = []
+        created_count = 0
+        skipped_count = 0
+
+        with transaction.atomic():
+            for row in data_rows:
+                # فیلدهای اجباری
+                title = row[idx_map["title"]] if idx_map["title"] is not None else None
+                body = row[idx_map["body"]] if idx_map["body"] is not None else None
+                
+                title = self.clean_text(title)
+                body = self.clean_text(body)
+
+                if not title or not body:
+                    skipped_count += 1
+                    continue  # اگر title یا body موجود نباشه، رد کن
+
+                # بررسی source
+                source_obj = None
+                source_uri = row[idx_map["source_uri"]] if idx_map["source_uri"] is not None else None
+                source_title = row[idx_map["source_title"]] if idx_map["source_title"] is not None else None
+
+                # اگر source_uri موجود باشه، اول روی اون چک می‌کنیم
+                if source_uri:
+                    source_obj = Source.objects.filter(source_uri=source_uri).first()
+                    # اگه پیدا نشد و title هم هست، بسازیم
+                    if not source_obj and source_title:
+                        source_obj = Source.objects.create(title=source_title.strip(), source_uri=source_uri.strip())
+                # اگر نه uri باشه ولی title باشه، می‌تونیم فقط title رو بسازیم یا اسکیپ کنیم
+                elif source_title:
+                    source_obj = Source.objects.filter(title__iexact=source_title.strip()).first()
+                    if not source_obj:
+                        source_obj = Source.objects.create(title=source_title.strip())
+
+                # اگر نه uri و نه title بود، اسکیپ می‌کنیم این رکورد
+                if not source_obj:
+                    # می‌تونیم log هم کنیم که رکورد اسکیپ شد
+                    continue
+
+                # بررسی uri خبر برای جلوگیری از رکورد تکراری
+                news_uri = row[idx_map["uri"]] if idx_map["uri"] is not None else None
+                if news_uri and KnowledgeBase.objects.filter(uri=news_uri).exists():
+                    skipped_count += 1
+                    continue
+
+                kb_data = {
+                    "title": title,
+                    "body": body,
+                    "source": source_obj,
+                    "url": row[idx_map["url"]] if idx_map["url"] is not None else None,
+                    "date_time_pub": row[idx_map["date_time_pub"]] if idx_map["date_time_pub"] is not None else None,
+                    "category": row[idx_map["category"]] if idx_map["category"] is not None else None,
+                    "is_news": row[idx_map["is_news"]] if idx_map["is_news"] is not None else None,
+                    "sim": row[idx_map["sim"]] if idx_map["sim"] is not None else None,
+                    "sentiment": row[idx_map["sentiment"]] if idx_map["sentiment"] is not None else None,
+                    "wgt": row[idx_map["wgt"]] if idx_map["wgt"] is not None else None,
+                    "relevance": row[idx_map["relevance"]] if idx_map["relevance"] is not None else None,
+                    "authors": row[idx_map["authors"]] if idx_map["authors"] is not None else None,
+                    "image": row[idx_map["image"]] if idx_map["image"] is not None else None,
+                    "lang": row[idx_map["lang"]] if idx_map["lang"] is not None else None,
+                    "is_duplicate": row[idx_map["is_duplicate"]] if idx_map["is_duplicate"] is not None else None,
+                    "data_type": row[idx_map["data_type"]] if idx_map["data_type"] is not None else None,
+                    "uri": news_uri,
+                }
+
+                kb_objects.append(KnowledgeBase(**kb_data))
+                created_count += 1
+
+        # ذخیره bulk
+        if kb_objects:
+            saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
+            assign_default_labels_to_kbs(saved_kbs)
+            create_kb_process_status(saved_kbs)
+
+        return Response({
+            "message": "File imported successfully.",
+            "inserted_count": created_count,
+            "skipped_count": skipped_count
+        }, status=status.HTTP_201_CREATED)
+
+# class UploadSourceFile(APIView):
+#     permission_classes = [AllowAny]
+#     def post(self, request, *args, **kwargs):
+#         source_data = self.request.data
+#         source_serializer = CreateSourceSerializer(data=source_data)
+#         if source_serializer.is_valid():
+#             source_item = source_serializer.save()
+#             print("ssssssssssss", source_item)
+#             done_item = 0
+#             done_item_in_server = 0
+#             try:
+#                 json_file = self.request.FILES.get('file')
+#                 print("jjjjjjjjjjjjjjjjj",json_file.read())
+#                 json_file.seek(0)
+#                 try:
+#                     file_data = json.load(json_file)
+#                     for obj in file_data:
+#                         search_text = obj["body"]
+
+#                         # Prepare search data
+#                         kb_data = {
+#                             'user': self.request.user.id if self.request.user.is_authenticated else None,
+#                             'title': search_text,
+#                             'body': search_text,
+#                             'source': source_item.id,
+#                             'category': "real"
+#                         }
+#                         serializer = AddKnowledgeBaseSerializer(data=kb_data)
+#                         if serializer.is_valid():
+#                             item = serializer.save()
+#                             done_item += 1
+#                             url = 'http://89.42.199.251:5682/text/kb/add_news'
+#                             headers = {
+#                                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+#                                 'Content-Type': 'application/json',
+#                             }
+#                             payload = {
+#                                 'category': item.category,
+#                                 'id': str(item.id),
+#                                 'body': item.body,
+#                             }
+#                             response = requests.post(url, params=payload, headers=headers)
+#                             if response.status_code == 200:
+#                                 data = response.json()
+#                                 done_item_in_server += 1
+
+#                     final_data = {
+#                         "source": source_serializer.data,
+#                         "backend_kb_added": done_item,
+#                         "AI_kb_added": done_item_in_server
+#                     }
+#                     return Response(final_data, status=status.HTTP_200_OK)
+
+#                 except json.JSONDecodeError as e:
+#                     return Response({"error": "Invalid JSON file - {}".format(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+#             except Exception as e:
+#                 logger.exception("Unexpected error occurred during search")
+#                 return Response({'error': 'Something went wrong, please try again.{}'.format(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#         return Response(source_serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
 
