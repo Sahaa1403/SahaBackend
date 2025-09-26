@@ -71,30 +71,31 @@ CELERY_TIMEZONE = 'Asia/Tehran'
 from celery.schedules import crontab
 from datetime import timedelta
 CELERY_BEAT_SCHEDULE = {
-    'trigger-send-kbs-every-minute': {
-        'task': 'search.tasks.trigger_send_kbs',
-        'schedule': timedelta(seconds=45),
-        'options': {'queue': 'queue_one'},
-        # 'schedule': crontab(minute='*'),  # هر دقیقه
-    },
-
-    # 'trigger_process_unprocessed_batch-every-35-seconds': {
-    #     'task': 'search.tasks.trigger_process_unprocessed_batch',
-    #     'schedule': timedelta(seconds=35),
+    # 'trigger-send-kbs-every-minute': {
+    #     'task': 'search.tasks.trigger_send_kbs',
+    #     'schedule': timedelta(seconds=80),
+    #     'options': {'queue': 'queue_one'},
+    #     # 'schedule': crontab(minute='*'),  # هر دقیقه
     # },
 
-    'check_is_news_from_ai': {
-        'task': 'search.tasks.check_is_news_from_ai',
-        'schedule': timedelta(seconds=45),
-        'options': {'queue': 'queue_two'},
-    },
+    # 'check_is_news_from_ai': {
+    #     'task': 'search.tasks.check_is_news_from_ai',
+    #     'schedule': timedelta(seconds=80),
+    #     'options': {'queue': 'queue_two'},
+    # },
+
+    'trigger_process_unprocessed_batch-every-20-seconds': {
+        'task': 'search.tasks.trigger_process_unprocessed_batch',
+        'schedule': timedelta(seconds=20),
+    }
+
 }
 
 CELERY_TASK_ROUTES = {
-    'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
-    'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
+    # 'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
+    # 'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
+    'search.tasks.trigger_process_unprocessed_batch': {'queue': 'queue_three'},
 }
-
 
 # APP CONFIGURATION
 DJANGO_APPS = (
