@@ -22,24 +22,28 @@ APPEND_SLASH = True
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 
-if os.getenv("STAGE") == "PRODUCTION":
+if os.getenv("STAGE") == "DEV":
+    # DATABASES = {
+    # "default": {
+    #     "ENGINE": "django.db.backends.postgresql_psycopg2",
+    #     "NAME": "postgres",
+    #     "USER": "root",
+    #     "PASSWORD": "7ndATqgoxAUGpJPuwLISMiUO",
+    #     # "HOST": "lhotse.liara.cloud",
+    #     "HOST": "185.208.181.142",
+    #     "PORT": "30645",
+    # }
     DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql_psycopg2",
-            "NAME": os.getenv("POSTGRES_DB"),
-            "USER": os.getenv("POSTGRES_USER"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-            "HOST": "lhotse.liara.cloud",
-            "PORT": 30645,
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": "postgres",
+        "USER": "root",
+        "PASSWORD": "7ndATqgoxAUGpJPuwLISMiUO",
+        "HOST": "db",
+        "PORT": "5432",
         }
     }
 else:
-    # DATABASES = {
-    #     "default": {
-    #         "ENGINE": "django.db.backends.sqlite3",
-    #         "NAME": BASE_DIR / "db.sqlite3",
-    #     }
-    # }
     DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
@@ -49,52 +53,50 @@ else:
         # "HOST": "lhotse.liara.cloud",
         "HOST": "185.208.181.142",
         "PORT": "30645",
-        # "Host": "sahapostgresql",
-        # "PORT": "5432",
+        } 
     }
-}
     
 # CELERY CONFIG
-
-CELERY_BROKER_URL = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+if os.getenv("STAGE") == "DEV":
+    CELERY_BROKER_URL = "redis://redis:6379/0"
+    # CELERY_BROKER_URL = "redis://localhost:6379/0"
+else:
+    CELERY_BROKER_URL = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 
-# CELERY_BROKER_URL = 'redis://localhost:6379/0'
-# CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Asia/Tehran'
 
 
-from celery.schedules import crontab
 from datetime import timedelta
 CELERY_BEAT_SCHEDULE = {
-    # 'trigger-send-kbs-every-minute': {
-    #     'task': 'search.tasks.trigger_send_kbs',
-    #     'schedule': timedelta(seconds=80),
-    #     'options': {'queue': 'queue_one'},
-    #     # 'schedule': crontab(minute='*'),  # هر دقیقه
-    # },
+    'trigger-send-kbs-every-minute': {
+        'task': 'search.tasks.trigger_send_kbs',
+        'schedule': timedelta(seconds=55),
+        'options': {'queue': 'queue_one'},
+        # 'schedule': crontab(minute='*'),  # هر دقیقه
+    },
 
-    # 'check_is_news_from_ai': {
-    #     'task': 'search.tasks.check_is_news_from_ai',
-    #     'schedule': timedelta(seconds=80),
-    #     'options': {'queue': 'queue_two'},
-    # },
+    'check_is_news_from_ai': {
+        'task': 'search.tasks.check_is_news_from_ai',
+        'schedule': timedelta(seconds=35),
+        'options': {'queue': 'queue_two'},
+    },
 
-    'trigger_process_unprocessed_batch-every-20-seconds': {
-        'task': 'search.tasks.trigger_process_unprocessed_batch',
-        'schedule': timedelta(seconds=20),
-    }
+    # 'trigger_process_unprocessed_batch-every-20-seconds': {
+    #     'task': 'search.tasks.trigger_process_unprocessed_batch',
+    #     'schedule': timedelta(seconds=20),
+    # }
 
 }
 
 CELERY_TASK_ROUTES = {
-    # 'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
-    # 'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
-    'search.tasks.trigger_process_unprocessed_batch': {'queue': 'queue_three'},
+    'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
+    'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
+    # 'search.tasks.trigger_process_unprocessed_batch': {'queue': 'queue_three'},
 }
 
 # APP CONFIGURATION
@@ -142,6 +144,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "config.middleware.DebugMiddleware",
 ]
 
 
@@ -166,10 +169,18 @@ TEMPLATES = [
 
 
 # CACHING CONFIGURATION
-CACHES = {
+if os.getenv("STAGE") == "PRODUCTION":
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+        }
+    }
+else:
+    CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+        "LOCATION": "redis://redis:6379/0",
     }
 }
 

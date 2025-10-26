@@ -680,13 +680,20 @@ class SearchByID(APIView):
             return Response({'error': 'Neither id nor batch_id provided'}, status=status.HTTP_400_BAD_REQUEST)
 
         simmilar_news_ids = search.ai_answer.get("ai_result", {}).get("simmilar_news") or []
+        simmilar_analysis_ids = search.ai_answer.get("ai_result", {}).get("simmilar_analysis") or []
+
         simmilar_news = []
+        simmilar_analysis = []
         if simmilar_news_ids:
             simmilar_news = KnowledgeBase.objects.filter(id__in=simmilar_news_ids)
 
+        if simmilar_analysis_ids:
+            simmilar_analysis = KnowledgeBase.objects.filter(id__in=simmilar_analysis_ids)
+
         return Response({
             "search": SearchSerializer(search).data,
-            "simmilar_news": KnowledgeBaseSerializer(simmilar_news, many=True).data
+            "simmilar_news": KnowledgeBaseSerializer(simmilar_news, many=True).data,
+            "simmilar_analysis": KnowledgeBaseSerializer(simmilar_analysis, many=True).data,
         }, status=status.HTTP_200_OK)
 
 # import logging
