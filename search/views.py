@@ -629,14 +629,10 @@ class KnowledgeBaseItemViewSet(APIView):
             return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, *args, **kwargs):
-        error_messages = {}
-        error_types = []
+
         try:
-            item = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            if not item.processed:
-                error_messages["processed"] = _("news is not processed.")
-                error_types.append(ErrorEnum.KnowledgeBaseError.ITEM_NOT_PROCESSED)
-                raise BadRequestException(message=error_messages, error_type=error_types)
+            kb_id = self.kwargs["id"]
+            item = KnowledgeBase.objects.get(id=kb_id)
             url = 'http://89.42.199.251:5682/text/kb/remove_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
@@ -659,8 +655,8 @@ class KnowledgeBaseItemViewSet(APIView):
                 print("Request Payload:", payload)
                 print("Request Headers:", headers)
                 return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
-        except:
-            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(f"Unexpected error for kb_id={kb_id}: {e}", status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -668,17 +664,32 @@ class KnowledgeBaseItemViewSet(APIView):
 class SearchByID(APIView):
     permission_classes = [AllowAny]
     def get(self, *args, **kwargs):
-        search = SearchData.objects.get(id=self.kwargs["id"])
-        if not search:
-            return Response({'error': 'Search data not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        search_id = self.kwargs.get("id")
+        batch_id = self.kwargs.get("batch_id")
+
+        if search_id:
+            search = SearchData.objects.filter(id=search_id).first()
+        elif batch_id:
+            search = SearchData.objects.filter(import_batch_id=batch_id).first()
+        else:
+            return Response({'error': 'Neither id nor batch_id provided'}, status=status.HTTP_400_BAD_REQUEST)
+
         simmilar_news_ids = search.ai_answer.get("ai_result", {}).get("simmilar_news") or []
+        simmilar_analysis_ids = search.ai_answer.get("ai_result", {}).get("simmilar_analysis") or []
+
         simmilar_news = []
+        simmilar_analysis = []
         if simmilar_news_ids:
             simmilar_news = KnowledgeBase.objects.filter(id__in=simmilar_news_ids)
 
+        if simmilar_analysis_ids:
+            simmilar_analysis = KnowledgeBase.objects.filter(id__in=simmilar_analysis_ids)
+
         return Response({
             "search": SearchSerializer(search).data,
-            "simmilar_news": KnowledgeBaseSerializer(simmilar_news, many=True).data
+            "simmilar_news": KnowledgeBaseSerializer(simmilar_news, many=True).data,
+            "simmilar_analysis": KnowledgeBaseSerializer(simmilar_analysis, many=True).data,
         }, status=status.HTTP_200_OK)
 
 # import logging
@@ -716,21 +727,21 @@ class Search(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             # External AI API request
-            url = 'http://89.42.199.251:5682/text/check_news'
-            # headers = {
-            #     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-            #     'Content-Type': 'application/json'
-            # }
+            url = "http://89.42.199.251:5682/text/check_news"
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Accept-Encoding': 'gzip, deflate',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Origin': 'http://89.42.199.251:5682',
-                'Referer': 'http://89.42.199.251:5682/docs',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
+                'Content-Type': 'application/json'
             }
+            # headers = {
+            #     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+            #     'Content-Type': 'application/json',
+            #     'Accept': 'application/json',
+            #     'Accept-Encoding': 'gzip, deflate',
+            #     'Accept-Language': 'en-US,en;q=0.9',
+            #     'Origin': 'http://62.60.198.225:5682',
+            #     'Referer': 'http://62.60.198.225:5682/docs',
+            #     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
+            # }
 
             payload = {'input_news': search_text}
 

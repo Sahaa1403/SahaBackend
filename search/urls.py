@@ -27,6 +27,7 @@ urlpatterns = [
 
     path("search", Search.as_view(), name="search"),
     path("search/<str:id>/", SearchByID.as_view(),name="search_id"),
+    path("search/batch/<uuid:batch_id>/", SearchByID.as_view(), name="search-by-batch"),
     path("media-search", MediaSearch.as_view(), name="media-search"),
     path("answer/<int:id>/", Answer.as_view(),name="answer"),
     path("download-search-data", DownloadSearchData.as_view(), name="download-search-data"),

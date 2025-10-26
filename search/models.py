@@ -11,6 +11,7 @@ class SearchData(models.Model):
     cat_choices = (("real", "real"), ("fake", "fake"),)
     result = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
     ai_answer = models.JSONField(null=True,blank=True)
+    import_batch_id = models.UUIDField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):

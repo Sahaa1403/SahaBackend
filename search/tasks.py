@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import requests
 from celery import shared_task
+from search.functions.public_functions import build_chart_data, call_check_news_api, get_ai_client, save_search_item, update_labels
 from search.models import KnowledgeBase, KnowledgeBaseLabelUser, KnowledgeBaseProcessStatus, Label
 from accounts.models import User
 from django.db.models import  Q
@@ -122,7 +123,7 @@ def trigger_process_unprocessed_batch():
     if not first_unprocessed:
         print("===> unprocessed_batch not found")
         return
-    process_news_batch.delay(str(first_unprocessed))
+    process_news_batch.apply_async(args=[str(first_unprocessed)], queue='queue_three')
 
 
 from django.db import transaction
@@ -133,67 +134,40 @@ from django.utils.crypto import get_random_string
 @shared_task(name='search.tasks.process_news_batch')
 def process_news_batch(batch_id):  
     print("===> Task Triggered")
-    LABEL_MAPPING = {
-        "real": "حقیقت",
-        "mis": "نادرست",
-        "dis": "فریب‌دهی",
-        "mal": "مخرب",
+    ai_client = get_ai_client()
+
+    kb = KnowledgeBase.objects.filter(processed=False, import_batch_id=batch_id).first()
+    if not kb:
+        print("❌ kb failed")
+        return
+    # for kb in kb_list:
+    ai_result = call_check_news_api(kb)
+    if not ai_result:
+        print("❌ ai_result failed")
+        return
+    
+    search_item = save_search_item(ai_client, kb, batch_id)
+    if not search_item:
+        print("❌ search_item failed")
+        return
+
+    fact_data, chart_data = build_chart_data(ai_result)
+
+    combined_result = {
+        'id': str(search_item.id),
+        'search_text': kb.body,
+        'ai_result': ai_result,
+        'fact_data': fact_data,
+        'chart_data': chart_data
     }
-    kb_list = KnowledgeBase.objects.filter(processed=False, import_batch_id=batch_id)[:3]
-    ai_client, _ = User.objects.get_or_create(
-        email="ai_client@yourapp.com",
-        defaults={
-            "username": "ai_client",
-            "name": "ai client",
-            "is_active": False,
-            "password": make_password(get_random_string(12)),
 
-        }
-    )
-
-    for kb in kb_list:
-        try:
-            headers = {
-                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
-                'Content-Type': 'application/json',
-            }
-            payload = {'input_news': kb.body}
-            response = requests.post(
-                "http://89.42.199.251:5682/text/check_news",
-                params=payload,
-                headers=headers,
-                timeout=40
-            )
-            if response.status_code == 200:
-                data = response.json()
-                print("✅ API sent for kb.id =", kb.id)
-            else:
-                print(f"❌ Failed to send kb {kb.id}")
-                # raise self.retry(exc=Exception(f"Status {response.status_code}"), countdown=30)
-            
-        except Exception:
-            continue  # اگه fail شد، این رکورد دفعه بعد دوباره بررسی میشه.
-
-        percentages = data.get("percentages", {})
-        if not percentages:
-            continue
+    search_item.result = "real" if ai_result.get('result') == "real" else "fake"
+    search_item.processed = True
+    search_item.ai_answer = combined_result
+    search_item.save()
+    update_labels(kb, ai_client, ai_result)
         
-        max_label = max(percentages, key=percentages.get)
-        label_title = LABEL_MAPPING.get(max_label)
-        if not label_title:
-            continue
-
-        label = get_object_or_404(Label, name=label_title)
-        with transaction.atomic():
-            KnowledgeBaseLabelUser.objects.update_or_create(
-                knowledge_base=kb,
-                user=ai_client,
-                defaults={'label': label}
-            )
-            kb.percentages = percentages
-            kb.processed = True
-            kb.save(update_fields=["percentages", "processed"])
-
+        
 # @shared_task(name='search.tasks.check_is_news_from_ai')
 # def check_is_news_from_ai():
 #     print("===> Task check_is_news_from_ai_is_triggered")

@@ -10,5 +10,11 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks()
 
 # CELERY_BROKER_URL = 'redis://localhost:6379/0'
-app.conf.broker_url = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+if os.getenv("STAGE") == "PRODUCTION":
+    app.conf.broker_url = "redis://default:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+else:
+    app.conf.broker_url = "redis://redis:6379/0"
 app.conf.result_backend = app.conf.broker_url
+
+if os.getenv("STAGE") == "PRODUCTION":
+    app.conf.beat_scheduler = "django_celery_beat.schedulers:DatabaseScheduler"
