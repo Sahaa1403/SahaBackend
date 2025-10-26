@@ -629,14 +629,10 @@ class KnowledgeBaseItemViewSet(APIView):
             return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, *args, **kwargs):
-        error_messages = {}
-        error_types = []
+
         try:
-            item = KnowledgeBase.objects.get(id=self.kwargs["id"])
-            if not item.processed:
-                error_messages["processed"] = _("news is not processed.")
-                error_types.append(ErrorEnum.KnowledgeBaseError.ITEM_NOT_PROCESSED)
-                raise BadRequestException(message=error_messages, error_type=error_types)
+            kb_id = self.kwargs["id"]
+            item = KnowledgeBase.objects.get(id=kb_id)
             url = 'http://89.42.199.251:5682/text/kb/remove_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
@@ -659,8 +655,8 @@ class KnowledgeBaseItemViewSet(APIView):
                 print("Request Payload:", payload)
                 print("Request Headers:", headers)
                 return Response("Failed to submit data!", status=status.HTTP_400_BAD_REQUEST)
-        except:
-            return Response("KnowledgeBase not found or something went wrong, try again", status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(f"Unexpected error for kb_id={kb_id}: {e}", status=status.HTTP_400_BAD_REQUEST)
 
 
 
