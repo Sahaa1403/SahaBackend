@@ -1292,7 +1292,8 @@ class ImportKnowledgeBaseExcelView(APIView):
         # ذخیره bulk
         if kb_objects:
             saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
-            assign_default_labels_to_kbs(saved_kbs)
+            #we dont need it with autoLabeling
+            # assign_default_labels_to_kbs(saved_kbs)
             create_kb_process_status(saved_kbs)
 
         return Response({
@@ -1873,14 +1874,18 @@ class ImportTestNewsContentExcelView(APIView):
         title_idx = headers.index("title")
         body_idx = headers.index("body")
         social_idx = headers.index("social_media")
+        date_time_pub_idx = headers.index("date_time_pub")
 
         kb_objects = []
         batch_id = uuid4()
         with transaction.atomic():
             for row in data_rows:
+                batch_id = uuid4()
                 title = row[title_idx]
                 body = row[body_idx]
                 social_title = row[social_idx]
+                date_time_pub = row[date_time_pub_idx]
+
 
                 if not (title and body and social_title):
                     continue
@@ -1903,7 +1908,8 @@ class ImportTestNewsContentExcelView(APIView):
                             body=body,
                             social_media=source_obj,
                             import_batch_id=batch_id,
-                            percentages=None,
+                            date_time_pub=date_time_pub,
+                            percentages=None
                         )
                 
                 kb_objects.append(kb)
@@ -1914,7 +1920,7 @@ class ImportTestNewsContentExcelView(APIView):
 
         return Response({
             "message": "File imported successfully. Data is being processed asynchronously.",
-            "batch_id": str(batch_id)},
+            },
             status=status.HTTP_202_ACCEPTED
             )
     
@@ -2036,153 +2042,238 @@ class ImportNewsContentDetailView(APIView):
     
     
 class DownloadKnowledgeBaseSourceType(APIView):
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        # ساخت فایل CSV با encoding مناسب برای فارسی
-        temp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='w', newline='', encoding='utf-8-sig')
-        writer = csv.writer(temp)
+    # def get(self, request):
+    #     # ساخت فایل CSV با encoding مناسب برای فارسی
+    #     temp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='w', newline='', encoding='utf-8-sig')
+    #     writer = csv.writer(temp)
 
-        # نوشتن عنوان ستون‌ها
-        writer.writerow([
-            'id', 'title', 'body', 'url', 'date_time_pub',
-            'source_id', 'source__title', 'uri', 'is_news',
-            'sim', 'sentiment', 'wgt', 'relevance', 'authors'
-        ])
+    #     # نوشتن عنوان ستون‌ها
+    #     writer.writerow([
+    #         'id', 'title', 'body', 'url', 'date_time_pub',
+    #         'source_id', 'source__title', 'uri', 'is_news',
+    #         'sim', 'sentiment', 'wgt', 'relevance', 'authors'
+    #     ])
 
-        # کوئری دیتابیس
-        # queryset = KnowledgeBase.objects.select_related('source').filter(source__isnull=False)[:1000]
-        queryset = KnowledgeBase.objects.select_related('source').filter(source__isnull=False, is_news=True)
+    #     # کوئری دیتابیس
+    #     # queryset = KnowledgeBase.objects.select_related('source').filter(source__isnull=False)[:1000]
+    #     queryset = KnowledgeBase.objects.select_related('source').filter(source__isnull=False, is_news=True)
 
 
-        def clean_text(text):
-            return text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ') if text else ''
-        for kb in queryset:
-            writer.writerow([
-                str(kb.id),
-                clean_text(str(kb.title)),
-                clean_text(str(kb.body)),
-                str(kb.url),
-                jdatetime.datetime.fromgregorian(datetime=kb.date_time_pub).strftime('%Y-%m-%d') if kb.date_time_pub else '',
-                str(kb.source.id) if kb.source else '',
-                clean_text(str(kb.source.title)) if kb.source else '',
-                str(kb.uri),
-                str(kb.is_news),
-                str(kb.sim),
-                str(kb.sentiment),
-                str(kb.wgt),
-                str(kb.relevance),
-                clean_text(str(kb.authors))
-            ])
+    #     def clean_text(text):
+    #         return text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ') if text else ''
+    #     for kb in queryset:
+    #         writer.writerow([
+    #             str(kb.id),
+    #             clean_text(str(kb.title)),
+    #             clean_text(str(kb.body)),
+    #             str(kb.url),
+    #             jdatetime.datetime.fromgregorian(datetime=kb.date_time_pub).strftime('%Y-%m-%d') if kb.date_time_pub else '',
+    #             str(kb.source.id) if kb.source else '',
+    #             clean_text(str(kb.source.title)) if kb.source else '',
+    #             str(kb.uri),
+    #             str(kb.is_news),
+    #             str(kb.sim),
+    #             str(kb.sentiment),
+    #             str(kb.wgt),
+    #             str(kb.relevance),
+    #             clean_text(str(kb.authors))
+    #         ])
 
-        temp.close()
+    #     temp.close()
 
-        # باز کردن فایل و ارسال آن
-        f = open(temp.name, 'rb')
-        response = FileResponse(f, content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="knowledgebase.csv"'
+    #     # باز کردن فایل و ارسال آن
+    #     f = open(temp.name, 'rb')
+    #     response = FileResponse(f, content_type='text/csv')
+    #     response['Content-Disposition'] = 'attachment; filename="knowledgebase.csv"'
 
-        return response
+    #     return response
     
     # this function get excel files from data in chunk of 1000 record in fromat of ZIP 
-    # def safe_excel_value(self, value):
-    #     if value is None:
-    #         return ''
-    #     if isinstance(value, list):
-    #         return ", ".join(str(v) for v in value)
-    #     return str(value)
+    def safe_excel_value(self, value):
+        if value is None:
+            return ''
+        if isinstance(value, list):
+            return ", ".join(str(v) for v in value)
+        return str(value)
     
-    # def get(self, request):
-    #     # تعداد رکورد در هر فایل اکسل
-    #     chunk_size = 1000
+    def get(self, request):
+        # تعداد رکورد در هر فایل اکسل
+        chunk_size = 1000
 
-    #     all_data = list(
-    #         KnowledgeBase.objects.select_related('source')
-    #         .filter(source__isnull=False, is_news=True)
-    #         .values(
-    #             'id', 'title', 'body', 'url', 'date_time_pub',
-    #             'source_id','source__title', 'uri', 'is_news',
-    #             'sim', 'sentiment', 'wgt', 'relevance', 'authors'
-    #         )
-    #     )
+        # all_data = list(
+        #     KnowledgeBase.objects.select_related('source')
+        #     .filter(source__isnull=False, is_news=True)
+        #     .values(
+        #         'id', 'title', 'body', 'url', 'date_time_pub',
+        #         'source_id','source__title','source__source_uri' ,'uri', 'is_news',
+        #         'sim', 'sentiment', 'wgt', 'relevance', 'authors'
+        #     )
+        # )
+
+        all_data = list(
+            KnowledgeBase.objects.select_related('source')
+            .filter(source__isnull=False)
+            .values(
+                'id', 'title', 'body', 'url', 'date_time_pub',
+                'source_id','source__title','source__source_uri' ,'uri', 'is_news',
+                'sim', 'sentiment', 'wgt', 'relevance', 'authors'
+            )
+        )
         
-    #     headers = [
-    #         'id', 'title', 'body', 'url', 'date_time_pub',
-    #         'source_id','source_title', 'uri', 'is_news',
-    #         'sim', 'sentiment', 'wgt', 'relevance', 'authors'
-    #     ]
+        headers = [
+            'id', 'title', 'body', 'url', 'date_time_pub',
+            'source_id','source_title','source_uri' ,'uri', 'is_news',
+            'sim', 'sentiment', 'wgt', 'relevance', 'authors'
+        ]
 
-    #     # ایجاد فایل zip در حافظه
-    #     zip_buffer = BytesIO()
-    #     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # ایجاد فایل zip در حافظه
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
 
-    #         # تقسیم داده‌ها به بخش‌های chunk_size
-    #         for i in range(0, len(all_data), chunk_size):
-    #             chunk = all_data[i:i + chunk_size]
+            # تقسیم داده‌ها به بخش‌های chunk_size
+            for i in range(0, len(all_data), chunk_size):
+                chunk = all_data[i:i + chunk_size]
                 
-    #             # ساخت فایل اکسل در حافظه برای هر بخش
-    #             excel_buffer = BytesIO()
-    #             workbook = xlsxwriter.Workbook(excel_buffer)
-    #             worksheet = workbook.add_worksheet('KnowledgeBase')
+                # ساخت فایل اکسل در حافظه برای هر بخش
+                excel_buffer = BytesIO()
+                workbook = xlsxwriter.Workbook(excel_buffer)
+                worksheet = workbook.add_worksheet('KnowledgeBase')
 
-    #             # فرمت‌ها
-    #             header_format = workbook.add_format({
-    #                 'bold': True,
-    #                 'bg_color': '#D9E1F2',
-    #                 'border': 1,
-    #                 'align': 'center',
-    #                 'valign': 'vcenter'
-    #             })
-    #             cell_format = workbook.add_format({
-    #                 'align': 'center',
-    #                 'valign': 'vcenter',
-    #                 'text_wrap': True
-    #             })
+                # فرمت‌ها
+                header_format = workbook.add_format({
+                    'bold': True,
+                    'bg_color': '#D9E1F2',
+                    'border': 1,
+                    'align': 'center',
+                    'valign': 'vcenter'
+                })
+                cell_format = workbook.add_format({
+                    'align': 'center',
+                    'valign': 'vcenter',
+                    'text_wrap': True
+                })
 
-    #             # تنظیم عرض ستون‌ها
-    #             widths = [15, 15, 50, 25, 15, 15, 15, 15, 15, 15, 15, 15, 15, 25]
-    #             for col, width in enumerate(widths):
-    #                 worksheet.set_column(col, col, width)
+                # تنظیم عرض ستون‌ها
+                widths = [15, 15, 50, 25, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 25]
+                for col, width in enumerate(widths):
+                    worksheet.set_column(col, col, width)
 
-    #             # نوشتن هدرها
-    #             for col, header in enumerate(headers):
-    #                 worksheet.write(0, col, header, header_format)
+                # نوشتن هدرها
+                for col, header in enumerate(headers):
+                    worksheet.write(0, col, header, header_format)
 
-    #             # نوشتن داده‌ها
-    #             for row, item in enumerate(chunk, start=1):
-    #                 row_data = [
-    #                     self.safe_excel_value(item['id']),
-    #                     self.safe_excel_value(item['title']),
-    #                     self.safe_excel_value((item['body'] or '')[:1000]),
-    #                     self.safe_excel_value(item['url']),
-    #                     jdatetime.datetime.fromgregorian(datetime=item['date_time_pub']).strftime('%Y-%m-%d') if item['date_time_pub'] else '',
-    #                     self.safe_excel_value(item['source_id']),
-    #                     self.safe_excel_value(item['source__title']),
-    #                     self.safe_excel_value(item['uri']),
-    #                     self.safe_excel_value(item['is_news']),
-    #                     self.safe_excel_value(item['sim']),
-    #                     self.safe_excel_value(item['sentiment']),
-    #                     self.safe_excel_value(item['wgt']),
-    #                     self.safe_excel_value(item['relevance']),
-    #                     self.safe_excel_value(item['authors']),
-    #                 ]
-    #                 for col, value in enumerate(row_data):
-    #                     worksheet.write(row, col, value, cell_format)
+                # نوشتن داده‌ها
+                for row, item in enumerate(chunk, start=1):
+                    row_data = [
+                        self.safe_excel_value(item['id']),
+                        self.safe_excel_value(item['title']),
+                        self.safe_excel_value((item['body'] or '')[:1000]),
+                        self.safe_excel_value(item['url']),
+                        jdatetime.datetime.fromgregorian(datetime=item['date_time_pub']).strftime('%Y-%m-%d') if item['date_time_pub'] else '',
+                        self.safe_excel_value(item['source_id']),
+                        self.safe_excel_value(item['source__title']),
+                        self.safe_excel_value(item['source__source_uri']),
+                        self.safe_excel_value(item['uri']),
+                        self.safe_excel_value(item['is_news']),
+                        self.safe_excel_value(item['sim']),
+                        self.safe_excel_value(item['sentiment']),
+                        self.safe_excel_value(item['wgt']),
+                        self.safe_excel_value(item['relevance']),
+                        self.safe_excel_value(item['authors']),
+                    ]
+                    for col, value in enumerate(row_data):
+                        worksheet.write(row, col, value, cell_format)
 
-    #             # فریز کردن ردیف اول و افزودن autofilter
-    #             worksheet.freeze_panes(1, 0)
-    #             print("xxxxxxxxxxxxxxxxxxxx")
-    #             worksheet.autofilter(0, 0, len(chunk), len(headers) - 1)
+                # فریز کردن ردیف اول و افزودن autofilter
+                worksheet.freeze_panes(1, 0)
+                worksheet.autofilter(0, 0, len(chunk), len(headers) - 1)
 
-    #             workbook.close()
-    #             excel_buffer.seek(0)
+                workbook.close()
+                excel_buffer.seek(0)
 
-    #             # اضافه کردن فایل اکسل به فایل زیپ
-    #             filename = f"KnowledgeBase_part_{i//chunk_size + 1}.xlsx"
-    #             zip_file.writestr(filename, excel_buffer.read())
+                # اضافه کردن فایل اکسل به فایل زیپ
+                filename = f"KnowledgeBase_part_{i//chunk_size + 1}.xlsx"
+                zip_file.writestr(filename, excel_buffer.read())
 
-    #     zip_buffer.seek(0)
+        zip_buffer.seek(0)
 
-    #     response = HttpResponse(zip_buffer, content_type='application/zip')
-    #     response['Content-Disposition'] = 'attachment; filename=KnowledgeBase_export.zip'
-    #     return response
+        response = HttpResponse(zip_buffer, content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename=KnowledgeBase_export.zip'
+        return response
+
+from django.core.files.storage import FileSystemStorage
+class ImportLabelsViaExcel(APIView):
+    def post(self, request):
+        excel_file = request.FILES.get("file")
+        if not excel_file:
+            return Response({"error": "هیچ فایلی ارسال نشده"}, status=400)
+
+        try:
+                        # ذخیره موقت فایل
+            # fs = FileSystemStorage()
+            # filename = fs.save(excel_file.name, excel_file)
+            # file_path = fs.path(filename)
+
+            # باز کردن اکسل
+            wb = openpyxl.load_workbook(filename=BytesIO(excel_file.read()), data_only=True)
+
+            # انتخاب sheet خاص
+            if "FinalDataset" not in wb.sheetnames:
+                return Response({"error": "no sheet named FinalDataset not found"}, status=400)
+
+            sheet = wb["FinalDataset"]
+
+            # گرفتن header ها
+            headers = [cell.value for cell in sheet[1]]
+
+            kb_idx = headers.index("ID") if "ID" in headers else None
+            label_idx = headers.index("Label") if "Label" in headers else None
+
+            if kb_idx is None or label_idx is None:
+                return Response({"error": "فایل اکسل باید شامل ستون‌های 'ID' و 'Label' باشد"}, status=400)
+
+            # کاربر سیستمی
+            system_user, _  = User.objects.get_or_create(
+            email="system_user@yourapp.com",
+            defaults={"username": "system_user", "name": "System User", "password": "system_user"}
+            )
+            # مپ لیبل‌ها
+            label_map = {
+                "حقیقت": 1,
+                "فریب دهی (اطلاعات نادرست عمدی / گمراه‌کننده)": 2,
+            }
+
+            imported_count = 0
+            skipped_count = 0
+
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                kb_id = row[kb_idx]
+                label_name = row[label_idx]
+
+                if not kb_id or not label_name:
+                    skipped_count += 1
+                    print("ssssssssssss", kb_id, label_name)
+                    continue
+                label_id = label_map.get(label_name)
+                if not label_id:
+                    print("cccccccccccc", label_name)
+                    skipped_count += 1
+                    continue
+               
+                KnowledgeBaseLabelUser.objects.get_or_create(
+                    knowledge_base_id=kb_id,
+                    label_id=label_id,
+                    user=system_user
+                )
+                imported_count += 1
+
+            return Response({
+                "message": "",
+                "imported": imported_count,
+                "skipped": skipped_count
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

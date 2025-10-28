@@ -86,9 +86,9 @@ CELERY_BEAT_SCHEDULE = {
         'options': {'queue': 'queue_two'},
     },
 
-    # 'trigger_process_unprocessed_batch-every-20-seconds': {
+    # 'trigger_process_unprocessed_batch-every-30-seconds': {
     #     'task': 'search.tasks.trigger_process_unprocessed_batch',
-    #     'schedule': timedelta(seconds=20),
+    #     'schedule': timedelta(seconds=30),
     # }
 
 }
@@ -169,19 +169,20 @@ TEMPLATES = [
 
 
 # CACHING CONFIGURATION
-if os.getenv("STAGE") == "PRODUCTION":
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": "redis://:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
-        }
-    }
-else:
+if os.getenv("STAGE") == "DEV":
     CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
         "LOCATION": "redis://redis:6379/0",
     }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": "redis://:2bA0TquxVq3mYDJjugPIRwwr@lhotse.liara.cloud:31643/0"
+        }
+    
 }
 
 
