@@ -3,7 +3,6 @@ import requests
 from celery import shared_task
 from search.functions.public_functions import build_chart_data, call_check_news_api, get_ai_client, save_search_item, update_labels
 from search.models import KnowledgeBase, KnowledgeBaseLabelUser, KnowledgeBaseProcessStatus, Label
-from accounts.models import User
 from django.db.models import  Q
 from django.db import transaction
 
@@ -47,11 +46,11 @@ def send_kb_to_ai(self, kb_id):
             }
 
             payload = {
-                'category': kb.category,
                 'id': str(kb.id),
                 'title': kb.title,
                 'body': truncated_body,
             }
+
             json_data = {
                 'source_uri': getattr(kb.source, 'source_uri', None) if kb.source else None,
                 'relevance': getattr(kb, 'relevance', None),
@@ -151,7 +150,6 @@ def send_kb_to_ai(self, kb_id):
 
 from django.utils.timezone import now, timedelta
 from django.utils import timezone
-
 @shared_task(name='search.tasks.trigger_process_unprocessed_batch')
 def trigger_process_unprocessed_batch():
     today = now().date()
@@ -167,11 +165,6 @@ def trigger_process_unprocessed_batch():
         return
     process_news_batch.apply_async(args=[str(first_unprocessed)], queue='queue_three')
 
-
-from django.db import transaction
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.hashers import make_password
-from django.utils.crypto import get_random_string
 
 @shared_task(name='search.tasks.process_news_batch')
 def process_news_batch(batch_id):  
@@ -295,7 +288,7 @@ def check_is_news_from_ai():
         is_news_checking=False,
         is_news_check_failed=False,
         knowledge_base__is_news__isnull=True,
-        knowledge_base__lang='eng'
+        knowledge_base__import_batch_id__isnull=True,
     ).select_related('knowledge_base')[:4]
 
     print("cccccccccccccccccccccccc", unchecked_statuses)
@@ -331,17 +324,17 @@ def process_unchecked_news(self, kb_id):
                     return None
 
             # First request: with title
-            response_title = call_api(kb.title)
-            if response_title is None or response_title.status_code != 200:
-                status.is_news_check_failed = True
-                status.is_news_checking = False
-                status.save(update_fields=['is_news_check_failed', 'is_news_checking'])
-                print(f"❌ Failed to translate title for kb {kb.id}")
-                return
+            # response_title = call_api(kb.title)
+            # if response_title is None or response_title.status_code != 200:
+            #     status.is_news_check_failed = True
+            #     status.is_news_checking = False
+            #     status.save(update_fields=['is_news_check_failed', 'is_news_checking'])
+            #     print(f"❌ Failed to translate title for kb {kb.id}")
+            #     return
 
-            data = response_title.json()
-            kb.is_news = data.get("result")
-            kb.title = data.get("trans")
+            # data = response_title.json()
+            # kb.is_news = data.get("result")
+            # kb.title = data.get("trans")
 
             # Second request: with truncated body
             truncated_body = kb.body[:3000]
@@ -350,17 +343,22 @@ def process_unchecked_news(self, kb_id):
                 status.is_news_check_failed = True
                 status.is_news_checking = False
                 status.save(update_fields=['is_news_check_failed', 'is_news_checking'])
-                print(f"❌ Failed to translate body for kb {kb.id}")
+                print(f"❌ Failed to specified is_news for kb {kb.id}")
                 return
 
-            trans_body = response_body.json().get("trans")
-            kb.body = trans_body
-            kb.save(update_fields=["is_news", "title", "body"])
+            
+            # trans_body = response_body.json().get("trans")
+            kb.is_news = response_body.json().get("result")
+            # kb.body = trans_body
+            # kb.save(update_fields=["is_news", "title", "body"])
+            kb.save(update_fields=["is_news"])
+
 
             status.is_news_check_failed = False
             status.is_news_checking = False
             status.save(update_fields=['is_news_check_failed', 'is_news_checking'])
-            print("✅ is_news, title & body checked and saved for kb.id =", kb.id)
+            print("✅ is_news checked and saved for kb.id =", kb.id)
+            # print("✅ is_news, title & body checked and saved for kb.id =", kb.id)
 
     except KnowledgeBase.DoesNotExist:
         print(f"❌ KnowledgeBase with id={kb_id} not found.")
