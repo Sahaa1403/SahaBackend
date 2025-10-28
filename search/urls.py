@@ -1,5 +1,5 @@
 from django.urls import path
-from search.views import AssignDefaultTruthLabelView, CheckNewsContentView, DownloadKnowledgeBaseSourceType, GenerateSourceFilesView, ImportKnowledgeBaseExcelView, ImportNewsContentDetailView, ImportTestNewsContentExcelView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
+from search.views import AssignDefaultTruthLabelView, CheckNewsContentView, DownloadKnowledgeBaseSourceType, GenerateSourceFilesView, ImportKnowledgeBaseExcelView, ImportLabelsViaExcel, ImportNewsContentDetailView, ImportTestNewsContentExcelView, NewsAPIView, Search, SearchByID, MediaSearch, Answer, \
     KnowledgeBaseViewSet, KnowledgeBaseItemViewSet, LabelViewSet,LabelItemViewSet,\
     SourceViewSet,SourceItemViewSet,SourceFullAPIViewSet,SocialmediaFullAPIViewSet,\
     SocialmediaItemViewSet,AddLabelViewSet, AddSourceLabelViewSet, ObjectsNumbersAPIViewSet, UpdateUnprocessedKBView,\
@@ -27,17 +27,19 @@ urlpatterns = [
 
     path("search", Search.as_view(), name="search"),
     path("search/<str:id>/", SearchByID.as_view(),name="search_id"),
-    path("search/batch/<uuid:batch_id>/", SearchByID.as_view(), name="search-by-batch"),
-    path("media-search", MediaSearch.as_view(), name="media-search"),
+    path("search/batch/<uuid:batch_id>/", SearchByID.as_view(), name="search_by_batch"),
+    path("media-search", MediaSearch.as_view(), name="media_search"),
     path("answer/<int:id>/", Answer.as_view(),name="answer"),
-    path("download-search-data", DownloadSearchData.as_view(), name="download-search-data"),
+    path("download-search-data", DownloadSearchData.as_view(), name="download_search_data"),
     path("kb/assign-truth-label", AssignDefaultTruthLabelView.as_view(), name='assign_truth_label'),
-    path('news/everything', NewsAPIView.as_view(), name='news-api'),
+    path('news/everything', NewsAPIView.as_view(), name='news_api'),
     path('kb/process-unprocessed', UpdateUnprocessedKBView.as_view(), name='process_kb'),
-    path('kb/import-test-news-content', ImportTestNewsContentExcelView.as_view(), name='import-test-news-content'),
-    path('kb/check-news-content', CheckNewsContentView.as_view(), name='check-news-content'),
-    path('kb/import-news-content-detail', ImportNewsContentDetailView.as_view(), name='imported-news-detail'),
-    path("download-knowledgebase-source-type", DownloadKnowledgeBaseSourceType.as_view(), name="download-knowledgebase-source-type"),
+    path('kb/import-test-news-content', ImportTestNewsContentExcelView.as_view(), name='import_test_news_content'),
+    path('kb/check-news-content', CheckNewsContentView.as_view(), name='check_news_content'),
+    path('kb/import-news-content-detail', ImportNewsContentDetailView.as_view(), name='import_news_detail'),
+    path("download-knowledgebase-source-type", DownloadKnowledgeBaseSourceType.as_view(), name="download_knowledgebase_source_type"),
+    path('kb/import-labels-via-Excel', ImportLabelsViaExcel.as_view(), name='import_labels_via_Excel'),
+
 
     #path("check-mongodb-connection", check_mongodb_connection, name="check-mongodb-connection"),
 ]

@@ -1292,7 +1292,8 @@ class ImportKnowledgeBaseExcelView(APIView):
         # ذخیره bulk
         if kb_objects:
             saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
-            assign_default_labels_to_kbs(saved_kbs)
+            #we dont need it with autoLabeling
+            # assign_default_labels_to_kbs(saved_kbs)
             create_kb_process_status(saved_kbs)
 
         return Response({
@@ -1873,14 +1874,18 @@ class ImportTestNewsContentExcelView(APIView):
         title_idx = headers.index("title")
         body_idx = headers.index("body")
         social_idx = headers.index("social_media")
+        date_time_pub_idx = headers.index("date_time_pub")
 
         kb_objects = []
         batch_id = uuid4()
         with transaction.atomic():
             for row in data_rows:
+                batch_id = uuid4()
                 title = row[title_idx]
                 body = row[body_idx]
                 social_title = row[social_idx]
+                date_time_pub = row[date_time_pub_idx]
+
 
                 if not (title and body and social_title):
                     continue
@@ -1903,7 +1908,8 @@ class ImportTestNewsContentExcelView(APIView):
                             body=body,
                             social_media=source_obj,
                             import_batch_id=batch_id,
-                            percentages=None,
+                            date_time_pub=date_time_pub,
+                            percentages=None
                         )
                 
                 kb_objects.append(kb)
@@ -1914,7 +1920,7 @@ class ImportTestNewsContentExcelView(APIView):
 
         return Response({
             "message": "File imported successfully. Data is being processed asynchronously.",
-            "batch_id": str(batch_id)},
+            },
             status=status.HTTP_202_ACCEPTED
             )
     
@@ -2183,6 +2189,77 @@ class DownloadKnowledgeBaseSourceType(APIView):
 
     #     zip_buffer.seek(0)
 
-    #     response = HttpResponse(zip_buffer, content_type='application/zip')
-    #     response['Content-Disposition'] = 'attachment; filename=KnowledgeBase_export.zip'
-    #     return response
+from django.core.files.storage import FileSystemStorage
+class ImportLabelsViaExcel(APIView):
+    def post(self, request):
+        excel_file = request.FILES.get("file")
+        if not excel_file:
+            return Response({"error": "هیچ فایلی ارسال نشده"}, status=400)
+
+        try:
+                        # ذخیره موقت فایل
+            # fs = FileSystemStorage()
+            # filename = fs.save(excel_file.name, excel_file)
+            # file_path = fs.path(filename)
+
+            # باز کردن اکسل
+            wb = openpyxl.load_workbook(filename=BytesIO(excel_file.read()), data_only=True)
+
+            # انتخاب sheet خاص
+            if "FinalDataset" not in wb.sheetnames:
+                return Response({"error": "no sheet named FinalDataset not found"}, status=400)
+
+            sheet = wb["FinalDataset"]
+
+            # گرفتن header ها
+            headers = [cell.value for cell in sheet[1]]
+
+            kb_idx = headers.index("ID") if "ID" in headers else None
+            label_idx = headers.index("Label") if "Label" in headers else None
+
+            if kb_idx is None or label_idx is None:
+                return Response({"error": "فایل اکسل باید شامل ستون‌های 'ID' و 'Label' باشد"}, status=400)
+
+            # کاربر سیستمی
+            system_user, _  = User.objects.get_or_create(
+            email="system_user@yourapp.com",
+            defaults={"username": "system_user", "name": "System User", "password": "system_user"}
+            )
+            # مپ لیبل‌ها
+            label_map = {
+                "حقیقت": 1,
+                "فریب دهی (اطلاعات نادرست عمدی / گمراه‌کننده)": 2,
+            }
+
+            imported_count = 0
+            skipped_count = 0
+
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                kb_id = row[kb_idx]
+                label_name = row[label_idx]
+
+                if not kb_id or not label_name:
+                    skipped_count += 1
+                    print("ssssssssssss", kb_id, label_name)
+                    continue
+                label_id = label_map.get(label_name)
+                if not label_id:
+                    print("cccccccccccc", label_name)
+                    skipped_count += 1
+                    continue
+               
+                KnowledgeBaseLabelUser.objects.get_or_create(
+                    knowledge_base_id=kb_id,
+                    label_id=label_id,
+                    user=system_user
+                )
+                imported_count += 1
+
+            return Response({
+                "message": "",
+                "imported": imported_count,
+                "skipped": skipped_count
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
