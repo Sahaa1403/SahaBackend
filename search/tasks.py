@@ -24,7 +24,9 @@ def trigger_send_kbs():
         add_news_check_failed=False,
         knowledge_base__import_batch_id__isnull=True,
         knowledge_base__processed=False,
-    ).select_related('knowledge_base')[:4]
+        knowledge_base__is_news = True,
+
+    ).select_related('knowledge_base', 'knowledge_base__source')[:4]
     for status in unchecked_statuses:
         status.add_news_checking = True
         status.save(update_fields=['add_news_checking'])
@@ -47,10 +49,22 @@ def send_kb_to_ai(self, kb_id):
             payload = {
                 'category': kb.category,
                 'id': str(kb.id),
+                'title': kb.title,
                 'body': truncated_body,
             }
-            response = requests.post('http://89.42.199.251:5682/text/kb/add_news',
+            json_data = {
+                'source_uri': getattr(kb.source, 'source_uri', None) if kb.source else None,
+                'relevance': getattr(kb, 'relevance', None),
+                'Country': getattr(kb.source, 'country', None) if kb.source else None,
+                'Affiliation': getattr(kb.source, 'affiliation', None) if kb.source else None,
+                'PoliticalOrientation': getattr(kb.source, 'political_orientation', None) if kb.source else None,
+                'Intensity': getattr(kb.source, 'intensity', None) if kb.source else None,
+                'LinkedTo': getattr(kb.source.linked_to, 'name', None) if (kb.source and kb.source.linked_to) else None,
+            }
+
+            response = requests.post('http://89.42.199.251:5682/text/kb/add_news_auto_labeling',
                                         params=payload,
+                                        json=json_data,
                                         headers=headers,
                                         timeout=(3, 60) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
                                         )
@@ -61,10 +75,38 @@ def send_kb_to_ai(self, kb_id):
                     print(f"❌ Failed to translate title for kb {kb.id}")
                     return
             
+
+            res = response.json()
+            detected_cat = res.get("detected_cat")
+
+            # map real/fake به label_id
+            label_map = {
+                "real": 1,
+                "fake": 2
+            }
+            label_id = label_map.get(detected_cat.lower()) if detected_cat else None
+
+            if not label_id:
+                print(f"⚠️ No valid detected_cat for kb.id = {kb.id}")
+            
+            try:
+                label = Label.objects.get(id=label_id)
+            except Label.DoesNotExist:
+                print(f"❌ Label with id={label_id} not found for kb.id = {kb.id}")
+                return
+            ai_client = get_ai_client()
+
+            KnowledgeBaseLabelUser.objects.create(
+                knowledge_base_id=kb.id,
+                label_id=label_id,
+                user_id=ai_client.id
+            )
             kb.processed = True
-            kb.save(update_fields=['processed'])
-            print("✅ API sent for kb.id =", kb.id)
-        
+            kb.default_label = label
+            kb.save(update_fields=['processed', 'default_label'])
+            # print("✅ API sent for kb.id =", kb.id)
+            print(f"✅ Label {detected_cat} assigned to kb.id = {kb.id}")
+            
     
     except KnowledgeBase.DoesNotExist:
         print(f"❌ KnowledgeBase with id={kb_id} not found.")

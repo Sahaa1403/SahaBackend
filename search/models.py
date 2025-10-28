@@ -27,10 +27,28 @@ ORIGIN_TYPE_CHOICES = (
     ("domestic", "داخلی"),
     ("foreign", "خارجی"),
 )
-class Source(models.Model):
-    title = models.CharField(max_length=90000)
-    description = models.TextField(max_length=2000,null=True,blank=True)
-    cat_choices = (
+AFFILIATION_CHOICES = [
+        ("state", "دولتی"),
+        ("semi_state", "نیمه‌دولتی"),
+        ("independent", "مستقل"),
+        ("opposition", "اپوزیسیون"),
+        ("private", "خصوصی"),
+        ("close_to_government", "نزدیک به حکومت"),
+    ]
+POLITICAL_CHOICES = [
+        ("right", "Right"),
+        ("right_center", "Right-Center"),
+        ("center_right", "Center-Right"),
+        ("center", "Center"),
+        ("left", "Left"),
+        ("left_center", "Left-Center"),
+        ("center_left", "Center-Left"),
+    ]
+INTENSITY_CHOICES = [
+        ("radical", "تندرو"),
+        ("moderate", "میانه‌رو"),
+    ]
+cat_choices = (
         ("real", "real"),
         ("fake", "fake"),
         ("حقیقت", "حقیقت"),
@@ -38,21 +56,33 @@ class Source(models.Model):
         ("فریب‌دهی", "فریب‌دهی"),
         ("مخرب", "مخرب")
     )
+
+class LinkedTo(models.Model):
+    name = models.CharField(max_length=80, unique=True)
+
+class Source(models.Model):
+    title = models.CharField(max_length=90000)
+    description = models.TextField(max_length=2000,null=True,blank=True)
+    
     def get_default_label():
         return Label.objects.get_or_create(name="حقیقت")[0].id
     category = models.CharField(max_length=10, blank=True, null=True, choices=cat_choices)
+    source_uri = models.CharField(max_length=255, null=True,blank=True)
     origin_type = models.CharField(max_length=10, blank=True, null=True, choices=ORIGIN_TYPE_CHOICES)
+    affiliation = models.CharField(max_length=20, choices=AFFILIATION_CHOICES, null=True, blank=True)
+    political_orientation = models.CharField(max_length=20, choices=POLITICAL_CHOICES, null=True, blank=True)
+    intensity = models.CharField(max_length=20, choices=INTENSITY_CHOICES, null=True, blank=True)
+    linked_to = models.ForeignKey(LinkedTo, on_delete=models.SET_NULL, null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
     default_label = models.ForeignKey(Label, on_delete=models.CASCADE, null=True,blank=True, default=get_default_label)
+    source_data_type = models.CharField(max_length=255, null=True,blank=True)
     photo = models.ImageField(upload_to="source_photo",null=True,blank=True)
     file = models.FileField(upload_to="source_file",null=True,blank=True)
-    source_uri = models.CharField(max_length=255, null=True,blank=True)
-    source_data_type = models.CharField(max_length=255, null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     def __str__(self):
         return self.title
     
-
 
 class SocialMedia(models.Model):
     title = models.CharField(max_length=1000)
@@ -76,7 +106,7 @@ class KnowledgeBase(models.Model):
     social_media = models.ForeignKey(SocialMedia, on_delete=models.CASCADE, null=True, blank=True)
     source = models.ForeignKey(Source,on_delete=models.CASCADE,null=True,blank=True, related_name='knowledge_bases')
     #label = models.ForeignKey(Label,on_delete=models.CASCADE,null=True,blank=True)
-    # default_label = models.ForeignKey(Label, on_delete=models.CASCADE)
+    default_label = models.ForeignKey(Label, on_delete=models.CASCADE, null=True,blank=True)
     keyword = models.CharField(max_length=2000,blank=True,null=True)
     location = models.CharField(max_length=2000,blank=True,null=True)
     url = models.URLField(max_length=5000, blank=True,null=True)
