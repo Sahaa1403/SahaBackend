@@ -73,18 +73,18 @@ def call_check_news_api(kb):
     payload = {'input_news': kb.body}
 
     try:
-        # response = requests.post(
-        #     "http://62.60.198.225:5682/text/check_news",
-        #     params=payload,
-        #     headers=headers,
-        #     timeout=60
-        # )
         response = requests.post(
-            "http://89.42.199.251:5682/text/check_news",
+            "http://localhost:5682/text/check_news",
             params=payload,
             headers=headers,
             timeout=60
         )
+        # response = requests.post(
+        #     "http://89.42.199.251:5682/text/check_news",
+        #     params=payload,
+        #     headers=headers,
+        #     timeout=60
+        # )
         if response.status_code == 200:
             return response.json()
         print(f"❌ Failed API call for kb.id={kb.id} - status={response.status_code}")
