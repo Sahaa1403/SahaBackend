@@ -86,17 +86,17 @@ CELERY_BEAT_SCHEDULE = {
         'options': {'queue': 'queue_two'},
     },
 
-    # 'trigger_process_unprocessed_batch-every-30-seconds': {
-    #     'task': 'search.tasks.trigger_process_unprocessed_batch',
-    #     'schedule': timedelta(seconds=30),
-    # }
+    'trigger_process_unprocessed_batch-every-30-seconds': {
+        'task': 'search.tasks.trigger_process_unprocessed_batch',
+        'schedule': timedelta(seconds=30),
+    }
 
 }
 
 CELERY_TASK_ROUTES = {
     'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
     'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
-    # 'search.tasks.trigger_process_unprocessed_batch': {'queue': 'queue_three'},
+    'search.tasks.trigger_process_unprocessed_batch': {'queue': 'queue_three'},
 }
 
 # APP CONFIGURATION

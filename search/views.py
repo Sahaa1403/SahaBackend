@@ -557,7 +557,8 @@ class KnowledgeBaseViewSet(APIView):
         if serializer.is_valid():
             item = serializer.save()
 
-            url = 'http://89.42.199.251:5682/text/kb/add_news'
+            # url = 'http://89.42.199.251:5682/text/kb/add_news'
+            url = 'http://localhost:5682/text/kb/add_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
@@ -600,7 +601,8 @@ class KnowledgeBaseItemViewSet(APIView):
             if serializer.is_valid():
                 item = serializer.save()
 
-                url = 'http://89.42.199.251:5682/text/kb/update_news'
+                # url = 'http://89.42.199.251:5682/text/kb/update_news'
+                url = 'http://localhost:5682/text/kb/update_news'
                 headers = {
                     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                     'Content-Type': 'application/json',
@@ -633,7 +635,8 @@ class KnowledgeBaseItemViewSet(APIView):
         try:
             kb_id = self.kwargs["id"]
             item = KnowledgeBase.objects.get(id=kb_id)
-            url = 'http://89.42.199.251:5682/text/kb/remove_news'
+            # url = 'http://89.42.199.251:5682/text/kb/remove_news'
+            url = 'http://localhost:5682/text/kb/remove_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
@@ -727,7 +730,8 @@ class Search(APIView):
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             # External AI API request
-            url = "http://89.42.199.251:5682/text/check_news"
+            # url = "http://89.42.199.251:5682/text/check_news"
+            url = "http://localhost:5682/text/check_news"
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json'
@@ -1016,7 +1020,8 @@ class UploadSearch(APIView):
                             done_item += 1
 
                         # External AI API request
-                        url = 'http://89.42.199.251:5682/text/check_news'
+                        # url = 'http://89.42.199.251:5682/text/check_news'
+                        url = 'http://localhost:5682/text/check_news'
                         headers = {
                             'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                             'Content-Type': 'application/json',
@@ -1793,7 +1798,8 @@ class NewsAPIView(APIView):
             # ذخیره همه اخبار به صورت bulk
             saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
 
-            assign_default_labels_to_kbs(saved_kbs)
+            # we dont need it with autoLabeling
+            # assign_default_labels_to_kbs(saved_kbs)
 
             create_kb_process_status(saved_kbs)
             
