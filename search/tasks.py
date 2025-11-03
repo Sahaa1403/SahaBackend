@@ -61,7 +61,13 @@ def send_kb_to_ai(self, kb_id):
                 'LinkedTo': getattr(kb.source.linked_to, 'name', None) if (kb.source and kb.source.linked_to) else None,
             }
 
-            response = requests.post('http://89.42.199.251:5682/text/kb/add_news_auto_labeling',
+            # response = requests.post('http://89.42.199.251:5682/text/kb/add_news_auto_labeling',
+            #                             params=payload,
+            #                             json=json_data,
+            #                             headers=headers,
+            #                             timeout=(3, 60) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
+            #                             )
+            response = requests.post('http://localhost:5682/text/kb/add_news_auto_labeling',
                                         params=payload,
                                         json=json_data,
                                         headers=headers,
@@ -312,8 +318,14 @@ def process_unchecked_news(self, kb_id):
                 }
                 payload = {'input_news': input_text}
                 try:
+                    # response = requests.post(
+                    #     'http://89.42.199.251:5682/text/is_news',
+                    #     params=payload,
+                    #     headers=headers,
+                    #     timeout=(3, 60)
+                    # )
                     response = requests.post(
-                        'http://89.42.199.251:5682/text/is_news',
+                        'http://localhost:5682/text/is_news',
                         params=payload,
                         headers=headers,
                         timeout=(3, 60)
