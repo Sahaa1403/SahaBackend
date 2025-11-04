@@ -37,9 +37,9 @@ services:
     ports:
       - "6379:6379"
 
-  auto_labeling_worker:
+  auto-labeling-worker:
     build: .
-    container_name: auto_labeling_worker
+    container_name: auto-labeling-worker
     command: >
       sh -c "celery -A config worker --loglevel=info --queues=queue_one"
     volumes:
@@ -51,9 +51,9 @@ services:
       - .env
     restart: always
 
-  is_news_worker:
+  is-news-worker:
     build: .
-    container_name: is_news_worker
+    container_name: is-news-worker
     command: >
       sh -c "celery -A config worker --loglevel=info --queues=queue_two"
     volumes:
@@ -65,9 +65,9 @@ services:
       - .env
     restart: always
     
-  news_content_worker:
+  news-content-worker:
     build: .
-    container_name: news_content_worker
+    container_name: news-content-worker
     command: >
       sh -c "celery -A config worker --loglevel=info --queues=queue_three"
     volumes:
@@ -80,9 +80,9 @@ services:
     restart: always
 
 
-  celery_beat:
+  celery-beat:
     build: .
-    container_name: celery_beat
+    container_name: celery-beat
     command: >
       sh -c "celery -A config beat --loglevel=info"
     volumes:
