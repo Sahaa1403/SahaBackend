@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /usr/src/app
+
+COPY . .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+CMD ["celery", "-A", "config", "worker", "--loglevel=info", "--queues=queue_one"]
+
+# CMD ["tail", "-f", "/dev/null"]
+

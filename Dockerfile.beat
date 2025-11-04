@@ -1,0 +1,25 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
+
+CMD ["celery", "-A", "config", "beat", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler", "--loglevel=info"]
+# CMD ["celery", "-A", "config", "beat", "--loglevel=info"]
+# CMD ["tail", "-f", "/dev/null"]
+
+
+# liara deploy --app celery-worker-one --dockerfile Dockerfile.worker1
+# liara deploy --app celery-worker-two --dockerfile Dockerfile.worker2
+# liara deploy --app celery-beat --dockerfile Dockerfile.beat
