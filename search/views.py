@@ -12,8 +12,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from accounts.models.user import User
-from errors.error_enum import ErrorEnum
-from errors.exeptions import BadRequestException
 from search.functions.public_functions import assign_default_labels_to_kbs
 from search.functions.public_functions import create_kb_process_status
 from search.models import SearchData,KnowledgeBase, Label, Source, SocialMedia, KnowledgeBaseLabelUser
@@ -81,7 +79,6 @@ class ObjectsNumbersAPIViewSet(APIView):
     def get(self, *args, **kwargs):
         try:
             filter = self.request.GET.get('filter', '')
-
             if filter == "sources":
                 kb = KnowledgeBase.objects.filter(source__isnull=False)
                 kbl = KnowledgeBaseLabelUser.objects.filter(knowledge_base__source__isnull=False)
@@ -759,7 +756,6 @@ class Search(APIView):
 
             if response.status_code == 200:
                 ai_result = response.json()
-                print("cccccccccccccccccccccc")
                 try:
                     fact = KnowledgeBase.objects.get(id=ai_result['fact_id'])
                     fact_data = KnowledgeBaseSerializer(fact, context={'request': request}).data
@@ -1676,31 +1672,52 @@ class NewsAPIView(APIView):
         
         params = {
             "apiKey": api_key,
-            # "lang": "fas",
-            "conceptUri": "http://en.wikipedia.org/wiki/Iran",
+            "lang": "fas",
+            # "conceptUri": "http://en.wikipedia.org/wiki/Iran",
             # "lang": "mul",
-            "dateStart": "2025-08-01",
-            "dateEnd": "2025-08-16",
+            "dateStart": "2025-09-01",
+            "dateEnd": "2025-09-15",
             # "sentiment": "negative",
-            # "locationUri": "http://en.wikipedia.org/wiki/Iran",
+            # "locationUri": "http://en.wikipedia.org/wiki/Iran"
+            
             "isDuplicateFilter": "skipDuplicates",
             "dataType": ["news"],
             # "dataType": ["news", "blog", "pr"],
             # "sourceUri": [ 
-            #     # "farsnews.ir", "tasnimnews.com", "isna.ir", "sharghdaily.com",
-            #     # "irna.ir", "mehrnews.com", "tabnak.ir",
+            #     "farsnews.ir", "tasnimnews.com", "isna.ir", "sharghdaily.com",
+            #     "irna.ir", "mehrnews.com",
+            #     "tabnak.ir", "mostaghelonline.com",
+            #     "hamshahrionline.ir",
+
                 
-            #     "foxnews.com", "msnbc.com",
-            #     "cnn.com", "telegraph.co.uk", "dailymail.co.uk", "bbc.com", "theguardian.com",
-            #     "israelhayom.com", "israelnationalnews.com", "haaretz.com",
-            #     "jpost.com", "sputniknews.com", "novayagazeta.ru", "globaltimes.cn",
-            #     "peopledaily.com.cn"
-            #     "aljazeera.com", "reuters.com" 
+            #     # "nytimes.com",
+            #     # "foxnews.com", "msnbc.com",
+            #     # "telegraph.co.uk", "dailymail.co.uk", "bbc.com", "theguardian.com",
+            #     # "israelhayom.com", "israelnationalnews.com", "haaretz.com",
+            #     # "jpost.com", "sputniknews.com", "novayagazeta.ru", "globaltimes.cn",
+            #     # "peopledaily.com.cn"
+            #     # "reuters.com" 
+            #     # "aljazeera.net", "aljazeera.com"
+
             # ],
             "sourceUri": [ 
+                
                 "radiofarda.com", "ir.voanews.com", "iranintl.com", "iranintl-website.vercel.app",
                 "bbc.com/persian", 
             ],
+            # "sourceUri": [ 
+            #     "apnews.com",
+            #     "upi.com",
+            #     "edition.cnn.com", "cnn.com", 
+            #     "bbc.co.uk",
+            #     "france24.com",
+            #     "alarabiya.net", "english.alarabiya.net",
+            #     "almanar.com.lb",
+            #     "bloomberg.com",
+            #     "rt.com",
+            #     "wsj.com",
+            #     "washingtonpost.com"
+            # ],
             "sortBy": "rel",
             "articlesPage": 1,
             "articlesCount": 100,
@@ -1724,7 +1741,7 @@ class NewsAPIView(APIView):
 
                     print(f"✅ Page {current_page} of {total_pages} fetched. Total articles: {len(all_articles)}")
 
-                    if current_page >= total_pages:
+                    if current_page >= 1:
                         print("🎉 All pages have been fetched.")
                         break
 
@@ -1796,19 +1813,19 @@ class NewsAPIView(APIView):
                 kb_objects.append(kb)
 
             # ذخیره همه اخبار به صورت bulk
-            saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
+            # saved_kbs = KnowledgeBase.objects.bulk_create(kb_objects)
 
             # we dont need it with autoLabeling
             # assign_default_labels_to_kbs(saved_kbs)
 
-            create_kb_process_status(saved_kbs)
+            # create_kb_process_status(saved_kbs)
             
         # print("count of records insert", len(saved_kbs))
         # celery BEAT and celery worker should execute concurrent
         return Response(
             {
                 "data": all_articles,
-                "message": f"{len(saved_kbs)} news add to DB."
+                # "message": f"{len(saved_kbs)} news add to DB."
             },
             status=status.HTTP_200_OK
             )
@@ -1845,7 +1862,7 @@ class UpdateUnprocessedKBView(APIView):
             #     'id': str(kb.id),
             #     'body': kb.body,
             # }
-            # response = requests.post('http://62.60.198.225:5682/text/kb/add_news', params=payload, headers=headers, timeout=(3, 60))
+            # response = requests.post('http://89.42.199.251:5682/text/kb/add_news', params=payload, headers=headers, timeout=(3, 60))
             # print("2222222222222222222222", response.status_code)
 
             # if response.status_code == 200:
@@ -1883,7 +1900,6 @@ class ImportTestNewsContentExcelView(APIView):
         date_time_pub_idx = headers.index("date_time_pub")
 
         kb_objects = []
-        batch_id = uuid4()
         with transaction.atomic():
             for row in data_rows:
                 batch_id = uuid4()
