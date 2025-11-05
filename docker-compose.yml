@@ -5,7 +5,8 @@ services:
     build: .
     container_name: django-app
     command: >
-        sh -c "python manage.py collectstatic --noinput &&
+        sh -c "python manage.py wait_for_db &&
+              python manage.py collectstatic --noinput &&
               python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
@@ -18,7 +19,7 @@ services:
       - redis
 
   db:
-    image: postgres:latest
+    image: postgres:17
     container_name: postgres-db
     restart: always
     environment:
