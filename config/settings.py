@@ -86,9 +86,9 @@ CELERY_BEAT_SCHEDULE = {
         'options': {'queue': 'queue_two'},
     },
 
-    'trigger_process_unprocessed_batch-every-30-seconds': {
+    'trigger_process_unprocessed_batch-every-25-seconds': {
         'task': 'search.tasks.trigger_process_unprocessed_batch',
-        'schedule': timedelta(seconds=30),
+        'schedule': timedelta(seconds=25),
     }
 
 }
@@ -144,7 +144,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "config.middleware.DebugMiddleware",
 ]
 
 

@@ -555,7 +555,7 @@ class KnowledgeBaseViewSet(APIView):
             item = serializer.save()
 
             # url = 'http://89.42.199.251:5682/text/kb/add_news'
-            url = 'http://localhost:5682/text/kb/add_news'
+            url = 'http://core-ai-sahaa:5682/text/kb/add_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
@@ -599,7 +599,7 @@ class KnowledgeBaseItemViewSet(APIView):
                 item = serializer.save()
 
                 # url = 'http://89.42.199.251:5682/text/kb/update_news'
-                url = 'http://localhost:5682/text/kb/update_news'
+                url = 'http://core-ai-sahaa:5682/text/kb/update_news'
                 headers = {
                     'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                     'Content-Type': 'application/json',
@@ -633,7 +633,7 @@ class KnowledgeBaseItemViewSet(APIView):
             kb_id = self.kwargs["id"]
             item = KnowledgeBase.objects.get(id=kb_id)
             # url = 'http://89.42.199.251:5682/text/kb/remove_news'
-            url = 'http://localhost:5682/text/kb/remove_news'
+            url = 'http://core-ai-sahaa:5682/text/kb/remove_news'
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json',
@@ -728,7 +728,7 @@ class Search(APIView):
 
             # External AI API request
             # url = "http://89.42.199.251:5682/text/check_news"
-            url = "http://localhost:5682/text/check_news"
+            url = "http://core-ai-sahaa:5682/text/check_news"
             headers = {
                 'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                 'Content-Type': 'application/json'
@@ -750,7 +750,6 @@ class Search(APIView):
             start = time.time()
 
             response = requests.post(url, params=payload, headers=headers, timeout=(3, 60), proxies={"http": None, "https": None})
-
             elapsed = time.time() - start
             logger.info(f"[AI_REQUEST] Got response {response.status_code} in {elapsed:.2f}s")
 
@@ -1017,7 +1016,7 @@ class UploadSearch(APIView):
 
                         # External AI API request
                         # url = 'http://89.42.199.251:5682/text/check_news'
-                        url = 'http://localhost:5682/text/check_news'
+                        url = 'http://core-ai-sahaa:5682/text/check_news'
                         headers = {
                             'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
                             'Content-Type': 'application/json',

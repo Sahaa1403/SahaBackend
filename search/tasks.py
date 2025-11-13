@@ -67,7 +67,7 @@ def send_kb_to_ai(self, kb_id):
             #                             headers=headers,
             #                             timeout=(3, 60) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
             #                             )
-            response = requests.post('http://localhost:5682/text/kb/add_news_auto_labeling',
+            response = requests.post('http://core-ai-sahaa:5682/text/kb/add_news_auto_labeling',
                                         params=payload,
                                         json=json_data,
                                         headers=headers,
@@ -325,7 +325,7 @@ def process_unchecked_news(self, kb_id):
                     #     timeout=(3, 60)
                     # )
                     response = requests.post(
-                        'http://localhost:5682/text/is_news',
+                        'http://core-ai-sahaa:5682/text/is_news',
                         params=payload,
                         headers=headers,
                         timeout=(3, 60)
@@ -352,7 +352,7 @@ def process_unchecked_news(self, kb_id):
             truncated_body = kb.body[:3000]
             response_body = call_api(truncated_body)
             if response_body is None or response_body.status_code != 200:
-                status.is_news_check_failed = True
+                # status.is_news_check_failed = True
                 status.is_news_checking = False
                 status.save(update_fields=['is_news_check_failed', 'is_news_checking'])
                 print(f"❌ Failed to specified is_news for kb {kb.id}")
