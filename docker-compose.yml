@@ -10,6 +10,8 @@ services:
               python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
+    networks:
+      - sahaa_network
     ports:
       - "8000:8000"
     env_file:
@@ -29,6 +31,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backup:/backup
+    networks:
+      - sahaa_network
     ports:
       - "5432:5432"
 
@@ -37,6 +41,9 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
+    networks:
+      - sahaa_network
+    restart: always
 
   auto-labeling-worker:
     build: .
@@ -45,6 +52,8 @@ services:
       sh -c "celery -A config worker --loglevel=info --queues=queue_one"
     volumes:
       - .:/app
+    networks:
+      - sahaa_network
     depends_on:
       - redis
       - db
@@ -59,6 +68,8 @@ services:
       sh -c "celery -A config worker --loglevel=info --queues=queue_two"
     volumes:
       - .:/app
+    networks:
+      - sahaa_network
     depends_on:
       - redis
       - db
@@ -73,6 +84,8 @@ services:
       sh -c "celery -A config worker --loglevel=info --queues=queue_three"
     volumes:
       - .:/app
+    networks:
+      - sahaa_network
     depends_on:
       - redis
       - db
@@ -88,11 +101,18 @@ services:
       sh -c "celery -A config beat --loglevel=info"
     volumes:
       - .:/app
+    networks:
+      - sahaa_network
     depends_on:
       - redis
       - db
     env_file:
       - .env
+    restart: always
 
 volumes:
   postgres_data:
+
+networks:
+  sahaa_network:
+    external: true

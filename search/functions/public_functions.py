@@ -74,7 +74,7 @@ def call_check_news_api(kb):
 
     try:
         response = requests.post(
-            "http://localhost:5682/text/check_news",
+            "http://core-ai-sahaa:5682/text/check_news",
             params=payload,
             headers=headers,
             timeout=60
