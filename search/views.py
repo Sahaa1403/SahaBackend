@@ -749,7 +749,7 @@ class Search(APIView):
             logger.info(f"[AI_REQUEST] Sending request to {url} | payload={payload}")
             start = time.time()
 
-            response = requests.post(url, params=payload, headers=headers, timeout=(3, 60), proxies={"http": None, "https": None})
+            response = requests.post(url, params=payload, headers=headers, timeout=(3, 90), proxies={"http": None, "https": None})
             elapsed = time.time() - start
             logger.info(f"[AI_REQUEST] Got response {response.status_code} in {elapsed:.2f}s")
 

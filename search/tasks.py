@@ -71,13 +71,13 @@ def send_kb_to_ai(self, kb_id):
                                         params=payload,
                                         json=json_data,
                                         headers=headers,
-                                        timeout=(3, 60) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
+                                        timeout=(3, 90) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
                                         )
             if  response.status_code != 200:
                     status.add_news_check_failed = True
                     status.add_news_checking = False
-                    status.save(update_fields=['is_news_check_failed', 'is_news_checking'])
-                    print(f"❌ Failed to translate title for kb {kb.id}")
+                    status.save(update_fields=['add_news_check_failed', 'add_news_checking'])
+                    print(f"❌ Failed to send news for kb_id {kb.id}")
                     return
             
 
@@ -139,7 +139,7 @@ def send_kb_to_ai(self, kb_id):
 #         response = requests.post('http://89.42.199.251:5682/text/kb/add_news',
 #                                     params=payload,
 #                                     headers=headers,
-#                                     timeout=(3, 60) # ← 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
+#                                     timeout=(3, 90) # ← 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
 #                                     )
 #         if response.status_code == 200:
 #             kb.processed = True
@@ -240,7 +240,7 @@ def process_news_batch(batch_id):
 #                         'http://89.42.199.251:5682/text/is_news',
 #                         params=payload,
 #                         headers=headers,
-#                         timeout=(3, 45)
+#                         timeout=(3, 90)
 #                     )
 #                     return response
 #                 except requests.RequestException as e:
@@ -322,13 +322,13 @@ def process_unchecked_news(self, kb_id):
                     #     'http://89.42.199.251:5682/text/is_news',
                     #     params=payload,
                     #     headers=headers,
-                    #     timeout=(3, 60)
+                    #     timeout=(3, 90)
                     # )
                     response = requests.post(
                         'http://core-ai-sahaa:5682/text/is_news',
                         params=payload,
                         headers=headers,
-                        timeout=(3, 60)
+                        timeout=(3, 90)
                     )
                     return response
                 except requests.RequestException as e:
@@ -378,3 +378,66 @@ def process_unchecked_news(self, kb_id):
         print(f"❌ Unexpected error for kb_id={kb_id}: {e}")
 
 
+@shared_task(name='search.tasks.trigger_send_analysis')
+def trigger_send_analysis():
+  
+    print("===> Task trigger_send_analysis_is_triggered")
+    unchecked_statuses = KnowledgeBaseProcessStatus.objects.filter(
+        add_news_checking=False,
+        add_news_check_failed=False,
+        knowledge_base__import_batch_id__isnull=True,
+        knowledge_base__processed=False,
+        knowledge_base__is_news = False,
+
+    ).select_related('knowledge_base', 'knowledge_base__source')[:3]
+    for status in unchecked_statuses:
+        status.add_news_checking = True
+        status.save(update_fields=['add_news_checking'])
+        send_analysis_to_ai.apply_async(args=[status.knowledge_base.id], queue='queue_one')
+
+@shared_task(bind=True, name='search.tasks.send_analysis_to_ai')
+def send_analysis_to_ai(self, kb_id):
+    try:
+        with transaction.atomic():
+            kb = KnowledgeBase.objects.select_for_update().get(id=kb_id)
+            status = KnowledgeBaseProcessStatus.objects.select_for_update().get(knowledge_base=kb)
+
+            truncated_body = kb.body[:3000]
+
+            headers = {
+                'sahaa-ai-api': 'WGhgR5dOAEc34MI0Zpi5C2Y3LyjwT9Ex',
+                'Content-Type': 'application/json',
+            }
+
+            payload = {
+                'category': kb.category,
+                'id': str(kb.id),
+                'body': truncated_body,
+            }
+
+            # response = requests.post('http://89.42.199.251:5682/text/kb/add_analysis',
+            #                             params=payload,
+            #                             headers=headers,
+            #                             timeout=(3, 90) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
+            #                             )
+            response = requests.post('http://core-ai-sahaa:5682/text/kb/add_analysis',
+                                        params=payload,
+                                        headers=headers,
+                                        timeout=(3, 90) # 3 ثانیه برای اتصال، 60 ثانیه برای خواندن
+                                        )
+            if  response.status_code != 200:
+                    status.add_news_check_failed = True
+                    status.add_news_checking = False
+                    status.save(update_fields=['add_news_check_failed', 'add_news_checking'])
+                    print(f"❌ Failed to add analysis for kb_id {kb.id}")
+                    return
+            
+            res = response.json()
+            kb.processed = True
+            kb.save(update_fields=['processed'])
+            print("☑️☑️ analysis sent for kb.id =", kb.id)
+            
+    except KnowledgeBase.DoesNotExist:
+        print(f"❌ KnowledgeBase with id={kb_id} not found.")
+    except Exception as e:
+        print(f"❌ Unexpected error for kb_id={kb_id}: {e}")

@@ -89,12 +89,19 @@ CELERY_BEAT_SCHEDULE = {
     'trigger_process_unprocessed_batch-every-25-seconds': {
         'task': 'search.tasks.trigger_process_unprocessed_batch',
         'schedule': timedelta(seconds=25),
-    }
+    },
+
+    'trigger-send-analysis': {
+        'task': 'search.tasks.trigger_send_analysis',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'queue_one'},
+    },
 
 }
 
 CELERY_TASK_ROUTES = {
     'search.tasks.trigger_send_kbs': {'queue': 'queue_one'},
+    'search.tasks.trigger_send_analysis': {'queue': 'queue_one'},
     'search.tasks.check_is_news_from_ai': {'queue': 'queue_two'},
     'search.tasks.trigger_process_unprocessed_batch': {'queue': 'queue_three'},
 }

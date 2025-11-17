@@ -77,13 +77,13 @@ def call_check_news_api(kb):
             "http://core-ai-sahaa:5682/text/check_news",
             params=payload,
             headers=headers,
-            timeout=60
+            timeout=90
         )
         # response = requests.post(
         #     "http://89.42.199.251:5682/text/check_news",
         #     params=payload,
         #     headers=headers,
-        #     timeout=60
+        #     timeout=90
         # )
         if response.status_code == 200:
             return response.json()
